@@ -1,0 +1,26 @@
+Booking Confirmation - MediPlus
+
+Dear {{user_name}},
+
+Thank you for booking an appointment with MediPlus. Here are your booking details:
+
+APPOINTMENT DETAILS
+==================
+Doctor: Dr. {{doctor_firstname}} {{doctor_lastname}}
+Specialty: {{doctor_specialty}}
+Date: {{booking_date}}
+Time: {{booking_time}}
+Fees: ${{booking_fees}}
+Status: {{booking_status}}
+Booking ID: {{booking_id}}
+
+Please arrive 15 minutes before your scheduled appointment time. If you need to reschedule or cancel, please contact us at least 24 hours in advance.
+
+For any questions, please don't hesitate to contact our support team.
+
+Best regards,
+The MediPlus Team
+
+---
+This is an automated email. Please do not reply to this message.
+© 2024 MediPlus. All rights reserved.

@@ -13,6 +13,15 @@ export const getDoctorById = async (id) => {
   return rows[0];
 };
 
+// Get doctor by name and specialty
+export const getDoctorByNameAndSpecialty = async (firstname, lastname, specialty) => {
+  const [rows] = await pool.query(
+    "SELECT * FROM doctors WHERE doctor_firstname = ? AND doctor_lastname = ? AND doctor_specialty = ?",
+    [firstname, lastname, specialty]
+  );
+  return rows[0];
+};
+
 // Create doctor
 export const createDoctor = async (doctorData) => {
   const {

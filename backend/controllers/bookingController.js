@@ -1,6 +1,7 @@
 import * as Booking from "../models/bookingModel.js";
 import * as User from "../models/userModel.js";
-import { sendBookingConfirmationEmail } from "../utils/emailService.js";
+import * as Doctor from "../models/doctorModel.js";
+import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail } from "../utils/emailService.js";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -50,16 +51,26 @@ export const createBookingController = async (req, res) => {
     // Get user details for email
     const user = await User.getUserById(user_id);
 
-    // Send booking confirmation email
+    // Get doctor details for email
+    const doctor = await Doctor.getDoctorByNameAndSpecialty(doctor_firstname, doctor_lastname, doctor_specialty);
+
+    // Send booking confirmation email to user
     const emailData = {
       ...booking,
       user_name: user?.user_name || 'Valued Customer',
     };
 
-    // Send email asynchronously (don't wait for it to complete)
+    // Send emails asynchronously (don't wait for them to complete)
     sendBookingConfirmationEmail(emailData).catch(err => {
       console.error('Failed to send booking confirmation email:', err);
     });
+
+    // Send notification email to doctor if doctor exists
+    if (doctor && doctor.doctor_email) {
+      sendDoctorBookingNotificationEmail(emailData, doctor).catch(err => {
+        console.error('Failed to send doctor booking notification email:', err);
+      });
+    }
 
     res.status(201).json({ message: "Booking successful", booking });
   } catch (err) {
