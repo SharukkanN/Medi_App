@@ -6,6 +6,15 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Helper function to strip HTML tags and create plain text
+const stripHtml = (html) => {
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/\s+/g, ' ') // Replace multiple whitespace with single space
+    .replace(/\n\s*\n/g, '\n') // Remove extra newlines
+    .trim();
+};
+
 // Create transporter
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
@@ -24,11 +33,7 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
     const htmlTemplatePath = path.join(__dirname, '../templates/bookingConfirmation.html');
     let htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
 
-    // Read text template
-    const textTemplatePath = path.join(__dirname, '../templates/bookingConfirmation.txt');
-    let textTemplate = fs.readFileSync(textTemplatePath, 'utf8');
-
-    // Replace placeholders in templates
+    // Replace placeholders in HTML template
     const replacements = {
       user_name: bookingData.user_name || 'Valued Customer',
       doctor_firstname: bookingData.doctor_firstname,
@@ -45,8 +50,10 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
     Object.keys(replacements).forEach(key => {
       const regex = new RegExp(`{{${key}}}`, 'g');
       htmlTemplate = htmlTemplate.replace(regex, replacements[key]);
-      textTemplate = textTemplate.replace(regex, replacements[key]);
     });
+
+    // Generate text version from HTML
+    const textTemplate = stripHtml(htmlTemplate);
 
     // Email options
     const mailOptions = {
@@ -74,11 +81,7 @@ export const sendDoctorBookingNotificationEmail = async (bookingData, doctorData
     const htmlTemplatePath = path.join(__dirname, '../templates/doctorBookingNotification.html');
     let htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
 
-    // Read text template
-    const textTemplatePath = path.join(__dirname, '../templates/doctorBookingNotification.txt');
-    let textTemplate = fs.readFileSync(textTemplatePath, 'utf8');
-
-    // Replace placeholders in templates
+    // Replace placeholders in HTML template
     const replacements = {
       user_name: bookingData.user_name || 'Valued Customer',
       user_email: bookingData.user_email,
@@ -97,8 +100,10 @@ export const sendDoctorBookingNotificationEmail = async (bookingData, doctorData
     Object.keys(replacements).forEach(key => {
       const regex = new RegExp(`{{${key}}}`, 'g');
       htmlTemplate = htmlTemplate.replace(regex, replacements[key]);
-      textTemplate = textTemplate.replace(regex, replacements[key]);
     });
+
+    // Generate text version from HTML
+    const textTemplate = stripHtml(htmlTemplate);
 
     // Email options
     const mailOptions = {
