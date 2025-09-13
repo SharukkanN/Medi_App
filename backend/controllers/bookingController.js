@@ -1,4 +1,6 @@
 import * as Booking from "../models/bookingModel.js";
+import * as User from "../models/userModel.js";
+import { sendBookingConfirmationEmail } from "../utils/emailService.js";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -43,6 +45,20 @@ export const createBookingController = async (req, res) => {
       booking_prescription,
       booking_user_doc,
       booking_status: booking_status || "Pending",
+    });
+
+    // Get user details for email
+    const user = await User.getUserById(user_id);
+
+    // Send booking confirmation email
+    const emailData = {
+      ...booking,
+      user_name: user?.user_name || 'Valued Customer',
+    };
+
+    // Send email asynchronously (don't wait for it to complete)
+    sendBookingConfirmationEmail(emailData).catch(err => {
+      console.error('Failed to send booking confirmation email:', err);
     });
 
     res.status(201).json({ message: "Booking successful", booking });
