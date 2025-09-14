@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { createBooking } from "../services/BookingService";
 
 const Booking = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const bookingData = location.state;
 
-  const [user, setUser] = useState(null);
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
-  const [receiptFile, setReceiptFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [userId, setUserId] = useState("");
 
   useEffect(() => {
     // Get logged-in user from localStorage
@@ -22,9 +20,9 @@ const Booking = () => {
       navigate("/signin");
       return;
     }
-    setUser(loggedUser);
     setEmail(loggedUser.email || "");
     setMobile(loggedUser.mobile || "");
+    setUserId(loggedUser.user_id || "");
   }, [navigate]);
 
   if (!bookingData) {
@@ -37,51 +35,33 @@ const Booking = () => {
 
   const { doctor, time, date } = bookingData;
 
-  const handleConfirm = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!user) return;
-
     if (!paymentMethod) {
-      alert("⚠️ Please select a payment method.");
+      alert("Please select a payment method.");
       return;
     }
-
-    if (paymentMethod === "receipt" && !receiptFile) {
-      alert("⚠️ Please upload your payment receipt.");
-      return;
-    }
-
+    const bookingBody = {
+      user_id: userId,
+      user_email: email,
+      user_mobile: mobile,
+      doctor_firstname: doctor.doctor_firstname,
+      doctor_lastname: doctor.doctor_lastname,
+      doctor_specialty: doctor.doctor_specialty,
+      booking_date: date,
+      booking_time: time + ":00",
+      booking_fees: parseInt(doctor.doctor_fees) || 0,
+      booking_receipt: null,
+      booking_prescription: null,
+      booking_user_doc: null,
+      booking_status: "Pending"
+    };
     try {
-      setLoading(true);
-
-      const formData = new FormData();
-      formData.append("user_id", user.user_id);
-      formData.append("user_email", email);
-      formData.append("user_mobile", mobile);
-      formData.append("doctor_firstname", doctor.doctor_firstname);
-      formData.append("doctor_lastname", doctor.doctor_lastname);
-      formData.append("doctor_specialty", doctor.doctor_specialty);
-      formData.append("booking_date", date);
-      formData.append("booking_time", time);
-      formData.append("booking_fees", doctor.doctor_fees || 2000);
-
-      // 👇 always set default booking status
-      formData.append("booking_status", "Pending");
-
-      if (receiptFile) formData.append("booking_receipt", receiptFile);
-
-      await axios.post("http://localhost:4000/api/bookings/create", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      alert("✅ Booking successful!");
-      navigate("/my-appointments"); // redirect to appointments page
-    } catch (err) {
-      console.error("Booking error:", err);
-      alert("❌ Booking failed. Try again.");
-    } finally {
-      setLoading(false);
+      await createBooking(bookingBody);
+      alert("Booking successful!");
+      navigate("/my-appointments");
+    } catch (error) {
+      alert("Booking failed: " + (error.message || "Unknown error"));
     }
   };
 
@@ -105,7 +85,7 @@ const Booking = () => {
       </div>
 
       {/* Booking Form */}
-      <form onSubmit={handleConfirm} className="space-y-5">
+      <form className="space-y-5" onSubmit={handleSubmit}>
         <div>
           <label className="block font-medium mb-1">
             Email Address <span className="text-red-500">*</span>
@@ -143,16 +123,6 @@ const Booking = () => {
               <input
                 type="radio"
                 name="payment"
-                value="receipt"
-                checked={paymentMethod === "receipt"}
-                onChange={() => setPaymentMethod("receipt")}
-              />
-              Upload Receipt
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="radio"
-                name="payment"
                 value="card"
                 checked={paymentMethod === "card"}
                 onChange={() => setPaymentMethod("card")}
@@ -162,27 +132,13 @@ const Booking = () => {
           </div>
         </div>
 
-        {/* Receipt Upload */}
-        {paymentMethod === "receipt" && (
-          <div>
-            <label className="block font-medium mb-1">
-              Upload Payment Receipt <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setReceiptFile(e.target.files[0])}
-              className="w-full border px-3 py-2 rounded-lg"
-            />
-          </div>
-        )}
+
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-primary text-white py-3 rounded-full font-medium hover:opacity-90 transition disabled:opacity-50"
+          className="w-full bg-primary text-white py-3 rounded-full font-medium hover:opacity-90 transition"
         >
-          {loading ? "Booking..." : "Book Now"}
+          Book Now
         </button>
       </form>
     </div>
