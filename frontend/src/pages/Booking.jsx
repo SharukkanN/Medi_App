@@ -6,7 +6,6 @@ const Booking = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const bookingData = location.state;
-
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
@@ -142,7 +141,7 @@ const Booking = () => {
       booking_receipt: bankSlip || null,
       booking_prescription: null,
       booking_user_doc: null,
-      booking_status: "Pending",
+      booking_status: bookingData.appointmentType === "online" ? "Link" : "Pending",
       payment_method: paymentMethod
     };
 
