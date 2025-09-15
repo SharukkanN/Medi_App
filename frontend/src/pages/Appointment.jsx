@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
 import {
@@ -17,20 +17,19 @@ const Appointment = () => {
   const [docSlots, setDocSlots] = useState([]);
   const [slotIndex, setSlotIndex] = useState(0);
   const [slotTime, setSlotTime] = useState("");
-  const [appointmentType, setAppointmentType] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isSignedIn, setIsSignedIn] = useState(true); // mock login state
   const navigate = useNavigate();
 
-  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const monthNames = [
+  const daysOfWeek = useMemo(() => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], []);
+  const monthNames = useMemo(() => [
     "Jan","Feb","Mar","Apr","May","Jun",
     "Jul","Aug","Sep","Oct","Nov","Dec"
-  ];
+  ], []);
 
   // Fetch doctor info
-  const fetchDocInfo = async () => {
+  const fetchDocInfo = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await fetch(`http://localhost:4000/api/doctor/${docId}`);
@@ -44,10 +43,10 @@ const Appointment = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [docId]);
 
   // Prepare slots
-  const prepareSlots = () => {
+  const prepareSlots = useCallback(() => {
     if (!docInfo?.doctor_available_time || !docInfo?.doctor_available_date) return;
 
     const availableTimes = docInfo.doctor_available_time.split(",");
@@ -72,15 +71,15 @@ const Appointment = () => {
     }
 
     setDocSlots(upcomingSlots);
-  };
+  }, [docInfo, daysOfWeek]);
 
   useEffect(() => {
     fetchDocInfo();
-  }, [docId]);
+  }, [fetchDocInfo]);
 
   useEffect(() => {
     if (docInfo) prepareSlots();
-  }, [docInfo]);
+  }, [docInfo, prepareSlots]);
 
   const handleBook = () => {
     if (!isSignedIn) {
@@ -91,24 +90,14 @@ const Appointment = () => {
       alert("Please select a time slot");
       return;
     }
-    if (!appointmentType) {
-      alert("Please select appointment type (Physical or Online)");
-      return;
-    }
     navigate("/booking", {
       state: {
         doctor: docInfo,
         time: slotTime,
         date: docSlots[slotIndex][0].datetime.toDateString(),
-        appointmentType: appointmentType,
+        appointmentType: "physical",
       },
     });
-  };
-
-  // Fee calc
-  const getAppointmentFee = () => {
-    const baseFee = parseInt(docInfo?.doctor_fees) || 2000;
-    return baseFee;
   };
 
   // Loading state
@@ -196,91 +185,41 @@ const Appointment = () => {
               Book Your Appointment
             </h2>
 
-            {/* Appointment Type */}
+            {/* Dates */}
             <div className="mb-8">
               <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                <Stethoscope className="w-5 h-5 text-blue-600" /> Consultation
-                Type
+                <Clock className="w-5 h-5 text-blue-600" /> Available Dates
               </h3>
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Physical */}
-                <div
-                  className={`p-6 rounded-xl border cursor-pointer transition ${
-                    appointmentType === "physical"
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-gray-200 hover:border-blue-400"
-                  }`}
-                  onClick={() => setAppointmentType("physical")}
-                >
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <Hospital className="w-5 h-5 text-blue-600" /> Physical Visit
-                  </h4>
-                  <p className="text-gray-600 text-sm mt-2">
-                    In-person consultation at clinic
-                  </p>
-                  <p className="mt-4 font-bold text-blue-700">
-                    Rs. {docInfo.doctor_fees || 2000}
-                  </p>
-                </div>
-                {/* Online */}
-                <div
-                  className={`p-6 rounded-xl border cursor-pointer transition ${
-                    appointmentType === "online"
-                      ? "border-green-600 bg-green-50"
-                      : "border-gray-200 hover:border-green-400"
-                  }`}
-                  onClick={() => setAppointmentType("online")}
-                >
-                  <h4 className="font-semibold flex items-center gap-2">
-                    <Video className="w-5 h-5 text-green-600" /> Online Consultation
-                  </h4>
-                  <p className="text-gray-600 text-sm mt-2">
-                    Video call from anywhere
-                  </p>
-                  <p className="mt-4 font-bold text-green-700">
-                    Rs. {getAppointmentFee()}
-                  </p>
-                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                {docSlots.map((daySlots, index) => {
+                  const date = daySlots[0].datetime;
+                  const isSelected = slotIndex === index;
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => {
+                        setSlotIndex(index);
+                        setSlotTime("");
+                      }}
+                      className={`p-4 rounded-lg text-center cursor-pointer border transition ${
+                        isSelected
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-gray-50 hover:bg-gray-100 border-gray-200"
+                      }`}
+                    >
+                      <div className="text-sm">
+                        {daysOfWeek[date.getDay()]}
+                      </div>
+                      <div className="text-xl font-bold">{date.getDate()}</div>
+                      <div className="text-xs">{monthNames[date.getMonth()]}</div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Dates */}
-            {appointmentType && (
-              <div className="mb-8">
-                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-blue-600" /> Available Dates
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                  {docSlots.map((daySlots, index) => {
-                    const date = daySlots[0].datetime;
-                    const isSelected = slotIndex === index;
-                    return (
-                      <div
-                        key={index}
-                        onClick={() => {
-                          setSlotIndex(index);
-                          setSlotTime("");
-                        }}
-                        className={`p-4 rounded-lg text-center cursor-pointer border transition ${
-                          isSelected
-                            ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-gray-50 hover:bg-gray-100 border-gray-200"
-                        }`}
-                      >
-                        <div className="text-sm">
-                          {daysOfWeek[date.getDay()]}
-                        </div>
-                        <div className="text-xl font-bold">{date.getDate()}</div>
-                        <div className="text-xs">{monthNames[date.getMonth()]}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {/* Time Slots */}
-            {appointmentType && docSlots[slotIndex] && (
+            {docSlots[slotIndex] && (
               <div className="mb-8">
                 <h3 className="font-semibold text-lg mb-4">Available Time</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
@@ -321,21 +260,21 @@ const Appointment = () => {
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center gap-4">
             <button
               onClick={handleBook}
-              disabled={!slotTime || !appointmentType}
+              disabled={!slotTime}
               className={`flex-1 py-4 px-6 rounded-xl font-bold text-lg transition ${
-                !slotTime || !appointmentType
+                !slotTime
                   ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700 text-white"
               }`}
             >
-              {slotTime && appointmentType
-                ? `Book ${appointmentType === "online" ? "Online" : "Physical"} - ${slotTime}`
-                : "Select Type, Date & Time"}
+              {slotTime
+                ? `Book Appointment - ${slotTime}`
+                : "Select Date & Time"}
             </button>
             <div className="text-center sm:text-right">
               <div className="text-sm text-gray-600">Consultation Fee</div>
               <div className="text-xl font-bold text-green-600">
-                Rs. {appointmentType ? getAppointmentFee() : docInfo.doctor_fees}
+                Rs. {docInfo.doctor_fees}
               </div>
             </div>
           </div>
