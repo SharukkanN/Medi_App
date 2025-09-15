@@ -1,6 +1,7 @@
 // src/pages/admin/Doctors.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
+import { uploadImage } from "../../api/ApiManager";
 import { 
   FaEdit, 
   FaTrash, 
@@ -54,7 +55,6 @@ const AdminDoctors = () => {
   
   // Image upload states
   const [selectedImage, setSelectedImage] = useState(null);
-  const [imageUploading, setImageUploading] = useState(false);
   
   const [formData, setFormData] = useState({
     doctor_username: "",
@@ -93,55 +93,6 @@ const AdminDoctors = () => {
   useEffect(() => {
     fetchDoctors();
   }, []);
-
-  // Image upload handler
-  const handleImageUpload = async (file) => {
-    if (!file) return null;
-    
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      setFormErrors(prev => ({ 
-        ...prev, 
-        doctor_image: 'Please select a valid image file (JPEG, PNG, GIF, or WebP)' 
-      }));
-      return null;
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setFormErrors(prev => ({ 
-        ...prev, 
-        doctor_image: 'Image size should be less than 5MB' 
-      }));
-      return null;
-    }
-    
-    setImageUploading(true);
-    
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      // Replace this with your actual image upload endpoint
-      const response = await axios.post('http://localhost:4000/api/upload/image', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      
-      return response.data.imageUrl; // Assuming your API returns { imageUrl: "..." }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      setFormErrors(prev => ({ 
-        ...prev, 
-        doctor_image: 'Failed to upload image. Please try again.' 
-      }));
-      return null;
-    } finally {
-      setImageUploading(false);
-    }
-  };
 
   // Enhanced file selection handler with drag and drop support
   const handleFileSelect = async (event) => {
@@ -325,19 +276,24 @@ const AdminDoctors = () => {
     
     setSubmitLoading(true);
     try {
-      let imageUrl = formData.doctor_image;
+      let publicId = formData.doctor_image; // Keep existing image if no new one uploaded
       
       // Upload image if a new one was selected
       if (selectedImage) {
-        const uploadedImageUrl = await handleImageUpload(selectedImage);
-        if (uploadedImageUrl) {
-          imageUrl = uploadedImageUrl;
+        const formDataImage = new FormData();
+        formDataImage.append('image', selectedImage);
+        
+        const uploadResponse = await uploadImage(formDataImage);
+        if (uploadResponse.data.success) {
+          publicId = uploadResponse.data.publicId;
+        } else {
+          throw new Error('Image upload failed');
         }
       }
       
       const payload = {
         ...formData,
-        doctor_image: imageUrl,
+        doctor_image: publicId,
         doctor_available_date: formData.doctor_available_date.join(","),
       };
       
@@ -349,7 +305,7 @@ const AdminDoctors = () => {
       setDoctors(
         doctors.map((d) =>
           d.doctor_id === editing.doctor_id 
-            ? { ...d, ...formData, doctor_image: imageUrl } 
+            ? { ...d, ...formData, doctor_image: publicId } 
             : d
         )
       );
@@ -371,24 +327,29 @@ const AdminDoctors = () => {
     
     setSubmitLoading(true);
     try {
-      let imageUrl = formData.doctor_image;
+      let publicId = "";
       
       // Upload image if selected
       if (selectedImage) {
-        const uploadedImageUrl = await handleImageUpload(selectedImage);
-        if (uploadedImageUrl) {
-          imageUrl = uploadedImageUrl;
+        const formDataImage = new FormData();
+        formDataImage.append('image', selectedImage);
+        
+        const uploadResponse = await uploadImage(formDataImage);
+        if (uploadResponse.data.success) {
+          publicId = uploadResponse.data.publicId;
+        } else {
+          throw new Error('Image upload failed');
         }
       }
       
       const payload = {
         ...formData,
-        doctor_image: imageUrl,
+        doctor_image: publicId,
         doctor_available_date: formData.doctor_available_date.join(","),
       };
       
       const res = await axios.post("http://localhost:4000/api/doctor", payload);
-      setDoctors([{ ...res.data, doctor_available_date: formData.doctor_available_date, doctor_image: imageUrl }, ...doctors]);
+      setDoctors([{ ...res.data, doctor_available_date: formData.doctor_available_date, doctor_image: formData.doctor_image }, ...doctors]);
       setAdding(false);
       resetForm();
       // Add success notification here
@@ -583,7 +544,7 @@ const AdminDoctors = () => {
                       <div className="relative">
                         {doc.doctor_image ? (
                           <img
-                            src={doc.doctor_image}
+                            src={`https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${doc.doctor_image}`}
                             alt={`Dr. ${doc.doctor_firstname} ${doc.doctor_lastname}`}
                             className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                             onError={(e) => {
@@ -791,7 +752,7 @@ const AdminDoctors = () => {
                           {(selectedImage || formData.doctor_image) ? (
                             <>
                               <img
-                                src={selectedImage ? URL.createObjectURL(selectedImage) : formData.doctor_image}
+                                src={selectedImage ? URL.createObjectURL(selectedImage) : `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${formData.doctor_image}`}
                                 alt="Doctor Profile"
                                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                               />
@@ -825,16 +786,6 @@ const AdminDoctors = () => {
                             <div className="w-full h-full flex flex-col items-center justify-center text-white">
                               <FaUserMd className="text-4xl mb-2 opacity-80" />
                               <span className="text-sm font-medium opacity-90">No Image</span>
-                            </div>
-                          )}
-                          
-                          {/* Loading overlay */}
-                          {imageUploading && (
-                            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                              <div className="flex flex-col items-center text-white">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-2"></div>
-                                <span className="text-sm font-medium">Uploading...</span>
-                              </div>
                             </div>
                           )}
                         </div>
@@ -1054,21 +1005,21 @@ const AdminDoctors = () => {
                   type="button"
                   onClick={handleCloseModal}
                   className="px-6 py-2 text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors duration-150"
-                  disabled={submitLoading || imageUploading}
+                  disabled={submitLoading}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={editing ? handleUpdate : handleAddDoctor}
-                  disabled={submitLoading || imageUploading}
+                  disabled={submitLoading}
                   className="px-6 py-2 bg-gradient-to-r from-[#5F6FFF] to-[#7B8CFF] text-white rounded-xl hover:from-[#5A6BF5] hover:to-[#748AFF] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
-                  {(submitLoading || imageUploading) ? (
+                  {submitLoading ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                       <span>
-                        {imageUploading ? "Uploading image..." : (editing ? "Updating..." : "Adding...")}
+                        {editing ? "Updating..." : "Adding..."}
                       </span>
                     </>
                   ) : (
@@ -1106,7 +1057,7 @@ const AdminDoctors = () => {
                   <div className="relative">
                     {selectedDoctor.doctor_image ? (
                       <img
-                        src={selectedDoctor.doctor_image}
+                        src={`https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${selectedDoctor.doctor_image}`}
                         alt={`Dr. ${selectedDoctor.doctor_firstname} ${selectedDoctor.doctor_lastname}`}
                         className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg"
                         onError={(e) => {
