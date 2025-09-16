@@ -1,6 +1,5 @@
 // src/pages/admin/Appointments.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { 
   FaEdit, 
   FaTrash, 
@@ -17,6 +16,7 @@ import {
   FaPlus,
   FaDownload
 } from "react-icons/fa";
+import { fetchAppointments, updateAppointment, deleteAppointment } from "../../services/BookingService";
 
 const Appointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -35,9 +35,9 @@ const Appointments = () => {
   const rowsPerPage = 10;
 
   // Fetch all bookings
-  const fetchAppointments = async () => {
+  const loadAppointments = async () => {
     try {
-      const res = await axios.get("http://localhost:4000/api/bookings/all");
+      const res = await fetchAppointments();
       setAppointments(res.data);
       setLoading(false);
     } catch (err) {
@@ -47,7 +47,7 @@ const Appointments = () => {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    loadAppointments();
   }, []);
 
   // Enhanced filters
@@ -108,10 +108,7 @@ const Appointments = () => {
         booking_status: editForm.status,
         booking_link: editForm.link || null,
       };
-      await axios.put(
-        `http://localhost:4000/api/bookings/update/${editing.booking_id}`,
-        payload
-      );
+      await updateAppointment(editing.booking_id, payload);
       setAppointments((prev) =>
         prev.map((a) => (a.booking_id === editing.booking_id ? { ...a, ...payload } : a))
       );
@@ -124,7 +121,7 @@ const Appointments = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this appointment?")) return;
     try {
-      await axios.delete(`http://localhost:4000/api/bookings/delete/${id}`);
+      await deleteAppointment(id);
       setAppointments((prev) => prev.filter((a) => a.booking_id !== id));
     } catch (err) {
       console.error("Error deleting appointment:", err);
