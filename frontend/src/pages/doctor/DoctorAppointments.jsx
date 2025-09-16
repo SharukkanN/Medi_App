@@ -1,5 +1,7 @@
 // src/pages/doctor/DoctorAppointments.jsx
 import React, { useEffect, useState } from "react";
+import { uploadImage } from "../../api/ApiManager";
+import { addPrescription } from "../../services/BookingService";
 
 const DoctorAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -54,16 +56,15 @@ const DoctorAppointments = () => {
     if (!file) return;
 
     const formData = new FormData();
-    formData.append("prescription", file);
+    formData.append("image", file);
 
     try {
-      const res = await fetch(`http://localhost:4000/api/bookings/upload/${bookingId}`, {
-        method: "POST",
-        body: formData,
-      });
+      const uploadRes = await uploadImage(formData);
+      const publicId = uploadRes.data.publicId;
 
-      const result = await res.json();
-      if (res.ok) {
+      const addRes = await addPrescription(bookingId, [publicId]);
+
+      if (addRes.data.success) {
         alert("Prescription uploaded successfully!");
         setAppointments((prev) =>
           prev.map((appt) =>
@@ -73,7 +74,7 @@ const DoctorAppointments = () => {
           )
         );
       } else {
-        alert(result.message || "Upload failed!");
+        alert(addRes.data.message || "Upload failed!");
       }
     } catch (err) {
       console.error("Upload error:", err);
