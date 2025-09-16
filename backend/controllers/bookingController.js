@@ -2,7 +2,7 @@ import * as Booking from "../models/bookingModel.js";
 import * as User from "../models/userModel.js";
 import * as Doctor from "../models/doctorModel.js";
 import pool from "../config/db.js";
-import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail, sendMeetingLinkEmailToUser, sendMeetingLinkEmailToDoctor } from "../utils/emailService.js";
+import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail, sendMeetingLinkEmailToUser, sendMeetingLinkEmailToDoctor, sendPrescriptionNotificationEmail } from "../utils/emailService.js";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -223,6 +223,20 @@ export const addPrescriptionController = async (req, res) => {
     const updated = await Booking.updatePrescription(BookingId, Prescription);
     if (!updated) {
       return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Get booking details to send email
+    const bookingData = await Booking.getBookingById(BookingId);
+    if (bookingData) {
+      // Get user name from user table
+      const userData = await User.getUserById(bookingData.user_id);
+      const emailData = {
+        user_name: userData ? userData.name : 'Valued Customer',
+        user_email: bookingData.user_email,
+      };
+
+      // Send prescription notification email
+      await sendPrescriptionNotificationEmail(emailData, Prescription);
     }
 
     res.json({ message: "Prescription added successfully" });

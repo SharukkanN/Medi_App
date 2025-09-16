@@ -99,6 +99,15 @@ export const getBookingStats = async () => {
   return rows;
 };
 
+// ✅ Get booking by ID
+export const getBookingById = async (booking_id) => {
+  const [rows] = await pool.query(
+    "SELECT * FROM bookings WHERE booking_id = ?",
+    [booking_id]
+  );
+  return rows[0];
+};
+
 // ✅ Update prescription for a booking
 export const updatePrescription = async (booking_id, prescription) => {
   const [result] = await pool.query(

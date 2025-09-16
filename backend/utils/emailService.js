@@ -272,4 +272,54 @@ export const sendAdminBookingNotificationEmail = async (bookingData) => {
     console.error('Error sending admin booking notification email:', error);
     return { success: false, error: error.message };
   }
-}
+};
+
+// Function to send prescription notification email
+export const sendPrescriptionNotificationEmail = async (bookingData, prescriptionArray) => {
+  try {
+    // Read HTML template
+    const htmlTemplatePath = path.join(__dirname, '../templates/prescriptionNotification.html');
+    let htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
+
+    // Generate prescription download links
+    let prescriptionLinks = '';
+    if (Array.isArray(prescriptionArray)) {
+      prescriptionArray.forEach((prescription, index) => {
+        const downloadUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${prescription}`;
+        prescriptionLinks += `<p><a href="${downloadUrl}" class="download-btn" target="_blank">Download Prescription ${index + 1}</a></p>`;
+      });
+    }
+
+    // Replace placeholders in HTML template
+    const replacements = {
+      user_name: bookingData.user_name || 'Valued Customer',
+      prescription_links: prescriptionLinks,
+    };
+
+    // Replace in HTML template
+    Object.keys(replacements).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      htmlTemplate = htmlTemplate.replace(regex, replacements[key]);
+    });
+
+    // Generate text version from HTML
+    const textTemplate = stripHtml(htmlTemplate);
+
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: bookingData.user_email,
+      subject: 'Your Prescription is Ready - MediPlus',
+      text: textTemplate,
+      html: htmlTemplate,
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Prescription notification email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending prescription notification email:', error);
+    return { success: false, error: error.message };
+  }
+};
