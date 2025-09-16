@@ -1,7 +1,7 @@
 import * as Booking from "../models/bookingModel.js";
 import * as User from "../models/userModel.js";
 import * as Doctor from "../models/doctorModel.js";
-import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail } from "../utils/emailService.js";
+import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail } from "../utils/emailService.js";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -71,6 +71,11 @@ export const createBookingController = async (req, res) => {
         console.error('Failed to send doctor booking notification email:', err);
       });
     }
+
+    // Send notification email to admin
+    sendAdminBookingNotificationEmail(emailData).catch(err => {
+      console.error('Failed to send admin booking notification email:', err);
+    });
 
     res.status(201).json({ message: "Booking successful", booking });
   } catch (err) {

@@ -123,3 +123,53 @@ export const sendDoctorBookingNotificationEmail = async (bookingData, doctorData
     return { success: false, error: error.message };
   }
 };
+
+// Function to send admin booking notification email
+export const sendAdminBookingNotificationEmail = async (bookingData) => {
+  try {
+    // Read HTML template
+    const htmlTemplatePath = path.join(__dirname, '../templates/adminBookingNotification.html');
+    let htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
+
+    // Replace placeholders in HTML template
+    const replacements = {
+      user_name: bookingData.user_name || 'Valued Customer',
+      user_email: bookingData.user_email,
+      user_mobile: bookingData.user_mobile,
+      doctor_firstname: bookingData.doctor_firstname,
+      doctor_lastname: bookingData.doctor_lastname,
+      doctor_specialty: bookingData.doctor_specialty,
+      booking_date: bookingData.booking_date,
+      booking_time: bookingData.booking_time,
+      booking_fees: bookingData.booking_fees,
+      booking_status: bookingData.booking_status,
+      booking_id: bookingData.booking_id,
+    };
+
+    // Replace in HTML template
+    Object.keys(replacements).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      htmlTemplate = htmlTemplate.replace(regex, replacements[key]);
+    });
+
+    // Generate text version from HTML
+    const textTemplate = stripHtml(htmlTemplate);
+
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: process.env.ADMIN_EMAIL,
+      subject: 'New Booking Notification - MediPlus',
+      text: textTemplate,
+      html: htmlTemplate,
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Admin booking notification email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending admin booking notification email:', error);
+    return { success: false, error: error.message };
+  }
+};
