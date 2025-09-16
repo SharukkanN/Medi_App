@@ -6,6 +6,7 @@ import { addPrescription } from "../../services/BookingService";
 const DoctorAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [uploading, setUploading] = useState({});
   const rowsPerPage = 10;
 
   useEffect(() => {
@@ -21,7 +22,17 @@ const DoctorAppointments = () => {
           (appt) =>
             appt.doctor_firstname === doctor.doctor_firstname &&
             appt.doctor_lastname === doctor.doctor_lastname
-        );
+        ).map(appt => ({
+          ...appt,
+          prescription_url: appt.booking_prescription ? (() => {
+            try {
+              const parsed = JSON.parse(appt.booking_prescription);
+              return parsed && parsed.length > 0 ? `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${parsed[0]}` : null;
+            } catch {
+              return null;
+            }
+          })() : null
+        }));
 
         setAppointments(doctorAppointments);
       } catch (err) {
@@ -55,12 +66,15 @@ const DoctorAppointments = () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    setUploading(prev => ({ ...prev, [bookingId]: true }));
+
     const formData = new FormData();
     formData.append("image", file);
 
     try {
       const uploadRes = await uploadImage(formData);
       const publicId = uploadRes.data.publicId;
+      const prescriptionUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${publicId}`;
 
       const addRes = await addPrescription(bookingId, [publicId]);
 
@@ -69,7 +83,7 @@ const DoctorAppointments = () => {
         setAppointments((prev) =>
           prev.map((appt) =>
             appt.booking_id === bookingId
-              ? { ...appt, booking_status: "Confirmed" }
+              ? { ...appt, booking_status: "Confirmed", prescription_url: prescriptionUrl }
               : appt
           )
         );
@@ -79,6 +93,8 @@ const DoctorAppointments = () => {
     } catch (err) {
       console.error("Upload error:", err);
       alert("Upload failed!");
+    } finally {
+      setUploading(prev => ({ ...prev, [bookingId]: false }));
     }
   };
 
@@ -190,21 +206,27 @@ const DoctorAppointments = () => {
 
                     {/* Upload Prescription */}
                     <td className="px-6 py-4 text-center">
-                      {isLinkStatus ? (
+                      {appt.prescription_url ? (
+                        <a
+                          href={appt.prescription_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline font-semibold"
+                        >
+                          View Prescription
+                        </a>
+                      ) : isLinkStatus ? (
                         <label className="flex items-center justify-center px-3 py-1 border rounded bg-blue-500 text-white cursor-pointer hover:bg-blue-600">
-                          Choose File
+                          {uploading[appt.booking_id] ? "Uploading..." : "Choose File"}
                           <input
                             type="file"
                             onChange={(e) => handleFileChange(e, appt.booking_id)}
                             className="hidden"
+                            disabled={uploading[appt.booking_id]}
                           />
                         </label>
                       ) : (
-                        <input
-                          type="file"
-                          disabled
-                          className="px-2 py-1 border rounded cursor-not-allowed bg-gray-200"
-                        />
+                        <span className="text-gray-500">Not available</span>
                       )}
                     </td>
                   </tr>
