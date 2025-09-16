@@ -9,6 +9,7 @@ import {
   getAllBookingsController,
   getBookingsCount,
   getBookingsStats,
+  addPrescriptionController,
 } from "../controllers/bookingController.js";
 
 const router = express.Router();
@@ -61,5 +62,8 @@ router.delete("/delete/:bookingId", deleteBookingController);
 // 👉 Dashboard routes (stats)
 router.get("/count/all", getBookingsCount);
 router.get("/stats", getBookingsStats);
+
+// 👉 Add prescription to a booking
+router.post("/add-prescription", addPrescriptionController);
 
 export default router;

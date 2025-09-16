@@ -210,3 +210,24 @@ export const getBookingsStats = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ✅ Add prescription to a booking
+export const addPrescriptionController = async (req, res) => {
+  try {
+    const { BookingId, Prescription } = req.body;
+
+    if (!BookingId || !Array.isArray(Prescription)) {
+      return res.status(400).json({ message: "Invalid input. BookingId and Prescription array are required." });
+    }
+
+    const updated = await Booking.updatePrescription(BookingId, Prescription);
+    if (!updated) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.json({ message: "Prescription added successfully" });
+  } catch (err) {
+    console.error("Error adding prescription:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

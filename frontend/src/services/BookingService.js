@@ -25,3 +25,10 @@ export const deleteAppointment = async (bookingId) => {
     path: `/bookings/delete/${bookingId}`,
   });
 };
+
+export const addPrescription = async (bookingId, prescription) => {
+  return apiPost({
+    path: "/bookings/add-prescription",
+    requestBody: { BookingId: bookingId, Prescription: prescription },
+  });
+};

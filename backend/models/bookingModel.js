@@ -98,3 +98,12 @@ export const getBookingStats = async () => {
   );
   return rows;
 };
+
+// ✅ Update prescription for a booking
+export const updatePrescription = async (booking_id, prescription) => {
+  const [result] = await pool.query(
+    "UPDATE bookings SET booking_prescription = ? WHERE booking_id = ?",
+    [JSON.stringify(prescription), booking_id]
+  );
+  return result.affectedRows;
+};
