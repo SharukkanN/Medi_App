@@ -1,7 +1,8 @@
 import * as Booking from "../models/bookingModel.js";
 import * as User from "../models/userModel.js";
 import * as Doctor from "../models/doctorModel.js";
-import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail } from "../utils/emailService.js";
+import pool from "../config/db.js";
+import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail, sendMeetingLinkEmailToUser, sendMeetingLinkEmailToDoctor } from "../utils/emailService.js";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -130,6 +131,42 @@ export const updateBookingController = async (req, res) => {
 
     const updated = await Booking.updateBooking(booking_id, updateData);
     if (!updated) return res.status(404).json({ message: "Booking not found" });
+
+    // If status is being updated to "Link" and booking_link is provided, send notification emails
+    if (updateData.booking_status === "Link" && updateData.booking_link) {
+      // Get the updated booking details
+      const [bookingRows] = await pool.query("SELECT * FROM bookings WHERE booking_id = ?", [booking_id]);
+      const booking = bookingRows[0];
+
+      if (booking) {
+        // Get user details for email
+        const user = await User.getUserById(booking.user_id);
+
+        // Get doctor details for email
+        const doctor = await Doctor.getDoctorByNameAndSpecialty(
+          booking.doctor_firstname,
+          booking.doctor_lastname,
+          booking.doctor_specialty
+        );
+
+        const emailData = {
+          ...booking,
+          user_name: user?.user_name || 'Valued Customer',
+        };
+
+        // Send meeting link notification to user
+        sendMeetingLinkEmailToUser(emailData).catch(err => {
+          console.error('Failed to send meeting link email to user:', err);
+        });
+
+        // Send meeting link notification to doctor if doctor exists
+        if (doctor && doctor.doctor_email) {
+          sendMeetingLinkEmailToDoctor(emailData, doctor).catch(err => {
+            console.error('Failed to send meeting link email to doctor:', err);
+          });
+        }
+      }
+    }
 
     res.json({ message: "Booking updated successfully" });
   } catch (err) {

@@ -124,6 +124,106 @@ export const sendDoctorBookingNotificationEmail = async (bookingData, doctorData
   }
 };
 
+// Function to send meeting link email to user
+export const sendMeetingLinkEmailToUser = async (bookingData) => {
+  try {
+    // Read HTML template
+    const htmlTemplatePath = path.join(__dirname, '../templates/meetingLinkToUser.html');
+    let htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
+
+    // Replace placeholders in HTML template
+    const replacements = {
+      user_name: bookingData.user_name || 'Valued Customer',
+      doctor_firstname: bookingData.doctor_firstname,
+      doctor_lastname: bookingData.doctor_lastname,
+      doctor_specialty: bookingData.doctor_specialty,
+      booking_date: bookingData.booking_date,
+      booking_time: bookingData.booking_time,
+      booking_fees: bookingData.booking_fees,
+      booking_status: bookingData.booking_status,
+      booking_id: bookingData.booking_id,
+      booking_link: bookingData.booking_link,
+    };
+
+    // Replace in HTML template
+    Object.keys(replacements).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      htmlTemplate = htmlTemplate.replace(regex, replacements[key]);
+    });
+
+    // Generate text version from HTML
+    const textTemplate = stripHtml(htmlTemplate);
+
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: bookingData.user_email,
+      subject: 'Meeting Link for Your Online Consultation - MediPlus',
+      text: textTemplate,
+      html: htmlTemplate,
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Meeting link email sent to user:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending meeting link email to user:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Function to send meeting link email to doctor
+export const sendMeetingLinkEmailToDoctor = async (bookingData, doctorData) => {
+  try {
+    // Read HTML template
+    const htmlTemplatePath = path.join(__dirname, '../templates/meetingLinkToDoctor.html');
+    let htmlTemplate = fs.readFileSync(htmlTemplatePath, 'utf8');
+
+    // Replace placeholders in HTML template
+    const replacements = {
+      user_name: bookingData.user_name || 'Valued Customer',
+      user_email: bookingData.user_email,
+      user_mobile: bookingData.user_mobile,
+      doctor_firstname: doctorData.doctor_firstname,
+      doctor_lastname: doctorData.doctor_lastname,
+      doctor_specialty: doctorData.doctor_specialty,
+      booking_date: bookingData.booking_date,
+      booking_time: bookingData.booking_time,
+      booking_fees: bookingData.booking_fees,
+      booking_status: bookingData.booking_status,
+      booking_id: bookingData.booking_id,
+      booking_link: bookingData.booking_link,
+    };
+
+    // Replace in HTML template
+    Object.keys(replacements).forEach(key => {
+      const regex = new RegExp(`{{${key}}}`, 'g');
+      htmlTemplate = htmlTemplate.replace(regex, replacements[key]);
+    });
+
+    // Generate text version from HTML
+    const textTemplate = stripHtml(htmlTemplate);
+
+    // Email options
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: doctorData.doctor_email,
+      subject: 'Meeting Link for Online Consultation - MediPlus',
+      text: textTemplate,
+      html: htmlTemplate,
+    };
+
+    // Send email
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Meeting link email sent to doctor:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending meeting link email to doctor:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Function to send admin booking notification email
 export const sendAdminBookingNotificationEmail = async (bookingData) => {
   try {
@@ -172,4 +272,4 @@ export const sendAdminBookingNotificationEmail = async (bookingData) => {
     console.error('Error sending admin booking notification email:', error);
     return { success: false, error: error.message };
   }
-};
+}
