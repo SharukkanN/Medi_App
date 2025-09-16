@@ -10,6 +10,7 @@ import {
   getBookingsCount,
   getBookingsStats,
   addPrescriptionController,
+  addUserDocumentsController,
 } from "../controllers/bookingController.js";
 
 const router = express.Router();
@@ -65,5 +66,8 @@ router.get("/stats", getBookingsStats);
 
 // 👉 Add prescription to a booking
 router.post("/add-prescription", addPrescriptionController);
+
+// 👉 Add user documents to a booking
+router.post("/add-documents", uploadUserDocs.array('documents', 10), addUserDocumentsController);
 
 export default router;

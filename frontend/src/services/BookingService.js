@@ -32,3 +32,10 @@ export const addPrescription = async (bookingId, prescription) => {
     requestBody: { BookingId: bookingId, Prescription: prescription },
   });
 };
+
+export const addUserDocuments = async (bookingId, documents) => {
+  return apiPost({
+    path: "/bookings/add-documents",
+    requestBody: { BookingId: bookingId, Documents: documents },
+  });
+};

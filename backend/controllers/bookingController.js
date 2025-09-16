@@ -3,6 +3,8 @@ import * as User from "../models/userModel.js";
 import * as Doctor from "../models/doctorModel.js";
 import pool from "../config/db.js";
 import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail, sendMeetingLinkEmailToUser, sendMeetingLinkEmailToDoctor, sendPrescriptionNotificationEmail } from "../utils/emailService.js";
+import fs from "fs";
+import path from "path";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -243,5 +245,44 @@ export const addPrescriptionController = async (req, res) => {
   } catch (err) {
     console.error("Error adding prescription:", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ✅ Add user documents to a booking
+export const addUserDocumentsController = async (req, res) => {
+  try {
+    const { bookingId } = req.body;
+    const files = req.files;
+
+    if (!bookingId) {
+      return res.status(400).json({ message: "Booking ID is required" });
+    }
+
+    if (!files || files.length === 0) {
+      return res.status(400).json({ message: "No documents uploaded" });
+    }
+
+    // Ensure the upload directory exists
+    const uploadDir = path.join(process.cwd(), "Upload", "Booking", "User");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+
+    // Get filenames
+    const documentFilenames = files.map(file => file.filename);
+
+    // Update booking with document filenames
+    const updated = await Booking.updateUserDocs(bookingId, documentFilenames);
+    if (!updated) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.status(200).json({ 
+      message: "Documents added successfully", 
+      documents: documentFilenames 
+    });
+  } catch (err) {
+    console.error("Error adding documents:", err);
+    res.status(500).json({ error: err.message });
   }
 };
