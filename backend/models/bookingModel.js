@@ -16,14 +16,15 @@ export const createBooking = async (bookingData) => {
     booking_prescription,
     booking_user_doc,
     booking_status,
+    booking_link,
   } = bookingData;
 
   const [result] = await pool.query(
     `INSERT INTO bookings
       (user_id, user_email, user_mobile, doctor_firstname, doctor_lastname, doctor_specialty, 
        booking_date, booking_time, booking_fees, booking_receipt, 
-       booking_prescription, booking_user_doc, booking_status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       booking_prescription, booking_user_doc, booking_status, booking_link)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       user_id,
       user_email,
@@ -38,6 +39,7 @@ export const createBooking = async (bookingData) => {
       booking_prescription || null,
       booking_user_doc || null,
       booking_status || "Pending",
+      booking_link || null,
     ]
   );
 
