@@ -1,4 +1,4 @@
-import { apiGet } from "../api/ApiManager";
+import { apiGet, apiDelete } from "../api/ApiManager";
 
 export const getDoctors = async () => {
   return apiGet({
@@ -10,4 +10,10 @@ export const getDoctorDetailsById = async (docId) => {
   return apiGet({
     path: `/doctor/${docId}`,
   });       
+};
+
+export const deleteDoctorById = async (docId) => {
+  return apiDelete({
+    path: `/doctor/${docId}`,
+  });
 };

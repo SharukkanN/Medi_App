@@ -1,6 +1,7 @@
 // src/pages/admin/Doctors.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
+import { getDoctors } from "../../services/DoctorService";
 import { uploadImage } from "../../api/ApiManager";
 import { 
   FaEdit, 
@@ -76,8 +77,9 @@ const AdminDoctors = () => {
   const fetchDoctors = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:4000/api/doctor");
-      const mappedDoctors = res.data.map((doc) => ({
+      const response = await getDoctors();
+      const data = response.data || response;
+      const mappedDoctors = data.map((doc) => ({
         ...doc,
         doctor_available_date: doc.doctor_available_date?.split(",") || [],
       }));
