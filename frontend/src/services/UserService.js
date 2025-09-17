@@ -1,4 +1,4 @@
-import { apiGet, apiPut } from "../api/ApiManager";
+import { apiGet, apiPut, apiDelete } from "../api/ApiManager";
 
 export const getUserById = async (userId) => {
   return apiGet({
@@ -17,4 +17,16 @@ export const getUsersCount = async () => {
   return apiGet({
     path: `/users/count/all`
   });
+};
+
+export const getUsers = async () => {
+  return apiGet({
+    path: `/users`
+  });
+};
+
+export const deleteUser = async (userId) => {
+  return apiDelete({
+    path: `/users/${userId}`
+  }); 
 };

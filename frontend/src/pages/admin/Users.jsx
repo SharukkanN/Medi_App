@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { FaTrash } from "react-icons/fa";
+import { getUsers } from "../../services/UserService";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -12,8 +13,8 @@ const Users = () => {
   // Fetch users from backend
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:4000/api/users"); // change URL if needed
-      setUsers(res.data);
+      const data = await getUsers();
+      setUsers(data.data);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching users:", err);
