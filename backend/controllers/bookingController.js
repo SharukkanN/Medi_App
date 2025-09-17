@@ -2,7 +2,9 @@ import * as Booking from "../models/bookingModel.js";
 import * as User from "../models/userModel.js";
 import * as Doctor from "../models/doctorModel.js";
 import pool from "../config/db.js";
-import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail, sendMeetingLinkEmailToUser, sendMeetingLinkEmailToDoctor } from "../utils/emailService.js";
+import { sendBookingConfirmationEmail, sendDoctorBookingNotificationEmail, sendAdminBookingNotificationEmail, sendMeetingLinkEmailToUser, sendMeetingLinkEmailToDoctor, sendPrescriptionNotificationEmail } from "../utils/emailService.js";
+import fs from "fs";
+import path from "path";
 
 // ✅ Create booking
 export const createBookingController = async (req, res) => {
@@ -207,6 +209,62 @@ export const getBookingsStats = async (req, res) => {
     res.json(stats);
   } catch (err) {
     console.error("Error fetching booking stats:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ✅ Add prescription to a booking
+export const addPrescriptionController = async (req, res) => {
+  try {
+    const { BookingId, Prescription } = req.body;
+
+    if (!BookingId || !Array.isArray(Prescription)) {
+      return res.status(400).json({ message: "Invalid input. BookingId and Prescription array are required." });
+    }
+
+    const updated = await Booking.updatePrescription(BookingId, Prescription);
+    if (!updated) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    // Get booking details to send email
+    const bookingData = await Booking.getBookingById(BookingId);
+    if (bookingData) {
+      // Get user name from user table
+      const userData = await User.getUserById(bookingData.user_id);
+      const emailData = {
+        user_name: userData ? userData.name : 'Valued Customer',
+        user_email: bookingData.user_email,
+      };
+
+      // Send prescription notification email
+      await sendPrescriptionNotificationEmail(emailData, Prescription);
+    }
+
+    res.json({ message: "Prescription added successfully" });
+  } catch (err) {
+    console.error("Error adding prescription:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// ✅ Add user documents to a booking
+export const addUserDocumentsController = async (req, res) => {
+  try {
+    const { BookingId, Documents } = req.body;
+
+    if (!BookingId || !Array.isArray(Documents)) {
+      return res.status(400).json({ message: "Invalid input. BookingId and Documents array are required." });
+    }
+
+    const updated = await Booking.updateUserDocs(BookingId, Documents);
+    if (!updated) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.json({ message: "Documents added successfully" });
+  } catch (err) {
+    console.error("Error adding documents:", err);
     res.status(500).json({ message: "Server error" });
   }
 };

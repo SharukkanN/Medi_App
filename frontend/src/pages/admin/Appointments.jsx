@@ -1,7 +1,22 @@
 // src/pages/admin/Appointments.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
-import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
+import { 
+  FaEdit, 
+  FaTrash, 
+  FaTimes, 
+  FaSearch, 
+  FaFilter, 
+  FaCalendarAlt,
+  FaClock,
+  FaUserMd,
+  FaEnvelope,
+  FaEye,
+  FaChevronLeft,
+  FaChevronRight,
+  FaPlus,
+  FaDownload
+} from "react-icons/fa";
+import { fetchAppointments, updateAppointment, deleteAppointment } from "../../services/BookingService";
 
 const Appointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -9,18 +24,20 @@ const Appointments = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState({ date: "", time: "", status: "", link: "" });
+  const [viewingDetails, setViewingDetails] = useState(null);
 
   // Filters
   const [filterStatus, setFilterStatus] = useState("All");
-  const [filterType, setFilterType] = useState("All"); // New: email / doctor / specialty
+  const [filterType, setFilterType] = useState("All");
   const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   const rowsPerPage = 10;
 
   // Fetch all bookings
-  const fetchAppointments = async () => {
+  const loadAppointments = async () => {
     try {
-      const res = await axios.get("http://localhost:4000/api/bookings/all");
+      const res = await fetchAppointments();
       setAppointments(res.data);
       setLoading(false);
     } catch (err) {
@@ -30,12 +47,13 @@ const Appointments = () => {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    loadAppointments();
   }, []);
 
-  // Filters
+  // Enhanced filters
   const filteredAppointments = appointments.filter((appt) => {
     const matchesStatus = filterStatus === "All" || appt.booking_status === filterStatus;
+    const matchesDate = !dateFilter || appt.booking_date === dateFilter;
 
     let matchesSearch = true;
     if (search.trim() !== "") {
@@ -49,7 +67,6 @@ const Appointments = () => {
       } else if (filterType === "Specialty") {
         matchesSearch = appt.doctor_specialty?.toLowerCase().includes(searchLower);
       } else {
-        // All: search across all
         matchesSearch =
           appt.user_email.toLowerCase().includes(searchLower) ||
           `${appt.doctor_firstname} ${appt.doctor_lastname}`.toLowerCase().includes(searchLower) ||
@@ -57,7 +74,7 @@ const Appointments = () => {
       }
     }
 
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch && matchesDate;
   });
 
   const totalPages = Math.ceil(filteredAppointments.length / rowsPerPage);
@@ -91,10 +108,7 @@ const Appointments = () => {
         booking_status: editForm.status,
         booking_link: editForm.link || null,
       };
-      await axios.put(
-        `http://localhost:4000/api/bookings/update/${editing.booking_id}`,
-        payload
-      );
+      await updateAppointment(editing.booking_id, payload);
       setAppointments((prev) =>
         prev.map((a) => (a.booking_id === editing.booking_id ? { ...a, ...payload } : a))
       );
@@ -107,226 +121,498 @@ const Appointments = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this appointment?")) return;
     try {
-      await axios.delete(`http://localhost:4000/api/bookings/delete/${id}`);
+      await deleteAppointment(id);
       setAppointments((prev) => prev.filter((a) => a.booking_id !== id));
     } catch (err) {
       console.error("Error deleting appointment:", err);
     }
   };
 
-  if (loading) return <div className="p-6 text-center text-gray-500">Loading appointments...</div>;
+  const getStatusColor = (status) => {
+    const colors = {
+      Confirmed: "bg-emerald-100 text-emerald-800 border-emerald-200",
+      Pending: "bg-amber-100 text-amber-800 border-amber-200",
+      Processing: "bg-blue-100 text-blue-800 border-blue-200",
+      Link: "bg-purple-100 text-purple-800 border-purple-200",
+      Cancelled: "bg-red-100 text-red-800 border-red-200"
+    };
+    return colors[status] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+
+  const getStatusIcon = (status) => {
+    const icons = {
+      Confirmed: "✓",
+      Pending: "⏳",
+      Processing: "🔄",
+      Link: "🔗",
+      Cancelled: "✕"
+    };
+    return icons[status] || "•";
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#5F6FFF] mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading appointments...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
-      <h1 className="text-3xl font-bold mb-6 text-[#5F6FFF] text-center">
-        Appointments Dashboard
-      </h1>
-
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6 justify-between items-center">
-        <input
-          type="text"
-          placeholder={`Search by ${filterType === "All" ? "email, doctor or specialty" : filterType}...`}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="border rounded-lg px-4 py-2 w-full md:w-1/3"
-        />
-
-        {/* <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="border rounded-lg px-4 py-2"
-        >
-          <option value="All">All</option>
-          <option value="Email">Email</option>
-          <option value="Doctor">Doctor</option>
-          <option value="Specialty">Specialty</option>
-        </select> */}
-
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="border rounded-lg px-4 py-2"
-        >
-          <option value="All">All Status</option>
-          <option value="Pending">Pending</option>
-          <option value="Processing">Processing</option>
-          <option value="Confirmed">Confirmed</option>
-          <option value="Link">Link</option>
-        </select>
+    <div className="p-6 min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-4xl font-bold text-gray-800 flex items-center gap-3">
+            <div className="p-2 bg-[#5F6FFF] rounded-xl">
+              <FaCalendarAlt className="text-white" />
+            </div>
+            Appointments
+          </h1>
+        </div>
+        <p className="text-gray-600">Manage and track all appointment bookings</p>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 overflow-x-auto">
-        <table className="min-w-full table-auto border-collapse text-sm">
-          <thead>
-            <tr className="bg-[#5F6FFF] text-white text-left text-base">
-              <th className="px-6 py-3">No.</th>
-              <th className="px-6 py-3">Email</th>
-              <th className="px-6 py-3">Doctor</th>
-              <th className="px-6 py-3">Booking Date</th>
-              <th className="px-6 py-3">Booking Time</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3 text-center">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {currentData.length === 0 && (
-              <tr>
-                <td colSpan="7" className="text-center py-6 text-gray-500">
-                  No appointments found
-                </td>
-              </tr>
-            )}
-            {currentData.map((appt, index) => (
-              <tr
-                key={appt.booking_id}
-                className="border-b hover:bg-gray-50 transition-all text-gray-700"
-              >
-                <td className="px-6 py-4">{(currentPage - 1) * rowsPerPage + index + 1}</td>
-                <td className="px-6 py-4">{appt.user_email}</td>
-                <td className="px-6 py-4">
-                  <div className="font-semibold">
-                    {appt.doctor_firstname} {appt.doctor_lastname}
-                  </div>
-                  <div className="text-blue-600 text-xs">{appt.doctor_specialty}</div>
-                </td>
-                <td className="px-6 py-4">{appt.booking_date}</td>
-                <td className="px-6 py-4">{appt.booking_time}</td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`px-3 py-1 rounded-full text-white font-medium text-xs ${
-                      appt.booking_status === "Confirmed"
-                        ? "bg-green-500"
-                        : appt.booking_status === "Pending"
-                        ? "bg-yellow-500"
-                        : appt.booking_status === "Processing"
-                        ? "bg-orange-500"
-                        : "bg-blue-500"
-                    }`}
-                  >
-                    {appt.booking_status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-center flex gap-3 justify-center">
-                  <button
-                    className="text-blue-500 hover:text-blue-700"
-                    onClick={() => handleEditClick(appt)}
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => handleDelete(appt.booking_id)}
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        {[
+          { label: "Total Appointments", value: appointments.length, color: "bg-blue-500", icon: FaCalendarAlt },
+          { label: "Confirmed", value: appointments.filter(a => a.booking_status === "Confirmed").length, color: "bg-emerald-500", icon: FaUserMd },
+          { label: "Pending", value: appointments.filter(a => a.booking_status === "Pending").length, color: "bg-amber-500", icon: FaClock },
+          { label: "This Month", value: appointments.filter(a => new Date(a.booking_date).getMonth() === new Date().getMonth()).length, color: "bg-purple-500", icon: FaCalendarAlt }
+        ].map((stat, index) => (
+          <div key={index} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-500 text-sm font-medium">{stat.label}</p>
+                <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
+              </div>
+              <div className={`p-3 rounded-xl ${stat.color}`}>
+                <stat.icon className="text-white text-xl" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
-        {/* Pagination */}
-        <div className="flex justify-between mt-6 items-center">
-          <button
-            onClick={handleBack}
-            disabled={currentPage === 1}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+      {/* Enhanced Filters */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <FaFilter className="text-[#5F6FFF]" />
+          <h3 className="font-semibold text-gray-800">Filters & Search</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="relative">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder={`Search by ${filterType === "All" ? "email, doctor or specialty" : filterType.toLowerCase()}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
+            />
+          </div>
+
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
           >
-            Back
-          </button>
-          <span className="text-gray-700 font-medium">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={handleNext}
-            disabled={currentPage === totalPages}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50"
+            <option value="All">Search All Fields</option>
+            <option value="Email">Search by Email</option>
+            <option value="Doctor">Search by Doctor</option>
+            <option value="Specialty">Search by Specialty</option>
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
           >
-            Next
-          </button>
+            <option value="All">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Processing">Processing</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="Link">Link</option>
+          </select>
+
+          <div className="relative">
+            <FaCalendarAlt className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Enhanced Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full">
+            <thead>
+              <tr className="bg-gradient-to-r from-[#5F6FFF] to-[#4F5FEF] text-white">
+                <th className="px-6 py-4 text-left text-sm font-semibold">No.</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">
+                  <div className="flex items-center gap-2">
+                    <FaEnvelope />
+                    Patient
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">
+                  <div className="flex items-center gap-2">
+                    <FaUserMd />
+                    Doctor
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">
+                  <div className="flex items-center gap-2">
+                    <FaCalendarAlt />
+                    Date & Time
+                  </div>
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-semibold">Status</th>
+                <th className="px-6 py-4 text-center text-sm font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {currentData.length === 0 && (
+                <tr>
+                  <td colSpan="6" className="text-center py-12">
+                    <div className="flex flex-col items-center">
+                      <FaCalendarAlt className="text-4xl text-gray-300 mb-4" />
+                      <p className="text-gray-500 font-medium">No appointments found</p>
+                      <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              {currentData.map((appt, index) => (
+                <tr
+                  key={appt.booking_id}
+                  className="hover:bg-gray-50 transition-colors group"
+                >
+                  <td className="px-6 py-4">
+                    <span className="text-gray-600 font-medium">
+                      {(currentPage - 1) * rowsPerPage + index + 1}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                        {appt.user_email.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">{appt.user_email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        Dr. {appt.doctor_firstname} {appt.doctor_lastname}
+                      </p>
+                      <p className="text-blue-600 text-sm font-medium bg-blue-50 px-2 py-1 rounded-md inline-block mt-1">
+                        {appt.doctor_specialty}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <FaCalendarAlt className="text-gray-400" />
+                      <div>
+                        <p className="font-medium text-gray-800">{appt.booking_date}</p>
+                        <p className="text-gray-500 text-sm flex items-center gap-1">
+                          <FaClock />
+                          {appt.booking_time}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(appt.booking_status)}`}>
+                      {getStatusIcon(appt.booking_status)} {appt.booking_status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                        onClick={() => setViewingDetails(appt)}
+                        title="View Details"
+                      >
+                        <FaEye />
+                      </button>
+                      <button
+                        className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
+                        onClick={() => handleEditClick(appt)}
+                        title="Edit"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        onClick={() => handleDelete(appt.booking_id)}
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Enhanced Pagination */}
+        <div className="flex items-center justify-between p-6 bg-gray-50 border-t border-gray-100">
+          <div className="flex items-center gap-2 text-gray-600">
+            <span>Showing</span>
+            <span className="font-semibold text-gray-800">
+              {Math.min((currentPage - 1) * rowsPerPage + 1, filteredAppointments.length)}
+            </span>
+            <span>to</span>
+            <span className="font-semibold text-gray-800">
+              {Math.min(currentPage * rowsPerPage, filteredAppointments.length)}
+            </span>
+            <span>of</span>
+            <span className="font-semibold text-gray-800">{filteredAppointments.length}</span>
+            <span>results</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBack}
+              disabled={currentPage === 1}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <FaChevronLeft />
+              Previous
+            </button>
+            
+            <div className="flex items-center gap-1">
+              {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                const pageNum = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-10 h-10 rounded-xl font-medium transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-[#5F6FFF] text-white'
+                        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            <button
+              onClick={handleNext}
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next
+              <FaChevronRight />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Edit Modal */}
       {editing && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
           onClick={() => setEditing(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative overflow-y-auto"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              onClick={() => setEditing(null)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-            >
-              <FaTimes />
-            </button>
-            <h2 className="text-2xl font-semibold mb-4 text-[#5F6FFF]">
-              Edit Appointment
-            </h2>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <FaEdit className="text-[#5F6FFF]" />
+                  Edit Appointment
+                </h2>
+                <button
+                  onClick={() => setEditing(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FaTimes />
+                </button>
+              </div>
 
-            <div className="flex flex-col gap-4 text-sm">
-              <label className="font-medium">Booking Date</label>
-              <input
-                type="date"
-                className="border px-3 py-2 rounded-lg w-full"
-                value={editForm.date}
-                onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-              />
-
-              <label className="font-medium">Booking Time</label>
-              <input
-                type="time"
-                className="border px-3 py-2 rounded-lg w-full"
-                value={editForm.time}
-                onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
-              />
-
-              <label className="font-medium">Status</label>
-              <select
-                className="border px-3 py-2 rounded-lg w-full"
-                value={editForm.status}
-                onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
-              >
-                <option value="Pending">Pending</option>
-                <option value="Processing">Processing</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Link">Link</option>
-              </select>
-
-              {editForm.status === "Link" && (
-                <>
-                  <label className="font-medium">Enter Link</label>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <FaCalendarAlt className="inline mr-2" />
+                    Booking Date
+                  </label>
                   <input
-                    type="text"
-                    className="border px-3 py-2 rounded-lg w-full"
-                    placeholder="Paste your link here"
-                    value={editForm.link}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, link: e.target.value })
-                    }
+                    type="date"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
+                    value={editForm.date}
+                    onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
                   />
-                </>
-              )}
-            </div>
+                </div>
 
-            <div className="flex justify-end gap-4 mt-6">
-              <button
-                onClick={() => setEditing(null)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdate}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-              >
-                Update
-              </button>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <FaClock className="inline mr-2" />
+                    Booking Time
+                  </label>
+                  <input
+                    type="time"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
+                    value={editForm.time}
+                    onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                  <select
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
+                    value={editForm.status}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Confirmed">Confirmed</option>
+                    <option value="Link">Link</option>
+                  </select>
+                </div>
+
+                {editForm.status === "Link" && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Meeting Link
+                    </label>
+                    <input
+                      type="url"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#5F6FFF] focus:border-transparent transition-all"
+                      placeholder="https://meet.google.com/..."
+                      value={editForm.link}
+                      onChange={(e) => setEditForm({ ...editForm, link: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button
+                  onClick={() => setEditing(null)}
+                  className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  className="flex-1 px-6 py-3 bg-[#5F6FFF] text-white rounded-xl hover:bg-[#4F5FEF] transition-colors font-medium"
+                >
+                  Update
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Details Modal */}
+      {viewingDetails && (
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+          onClick={() => setViewingDetails(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <FaEye className="text-[#5F6FFF]" />
+                  Appointment Details
+                </h2>
+                <button
+                  onClick={() => setViewingDetails(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-800 mb-2">Patient Information</h3>
+                  <p className="text-gray-600">{viewingDetails.user_email}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-800 mb-2">Doctor Information</h3>
+                  <p className="text-gray-800 font-medium">
+                    Dr. {viewingDetails.doctor_firstname} {viewingDetails.doctor_lastname}
+                  </p>
+                  <p className="text-blue-600 text-sm">{viewingDetails.doctor_specialty}</p>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-800 mb-2">Appointment Schedule</h3>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <FaCalendarAlt className="text-gray-500" />
+                      <span>{viewingDetails.booking_date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FaClock className="text-gray-500" />
+                      <span>{viewingDetails.booking_time}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h3 className="font-semibold text-gray-800 mb-2">Status</h3>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(viewingDetails.booking_status)}`}>
+                    {getStatusIcon(viewingDetails.booking_status)} {viewingDetails.booking_status}
+                  </span>
+                </div>
+
+                {viewingDetails.booking_link && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="font-semibold text-gray-800 mb-2">Meeting Link</h3>
+                    <a
+                      href={viewingDetails.booking_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 underline break-all"
+                    >
+                      {viewingDetails.booking_link}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-4 mt-8">
+                <button
+                  onClick={() => {
+                    setViewingDetails(null);
+                    handleEditClick(viewingDetails);
+                  }}
+                  className="flex-1 px-6 py-3 bg-[#5F6FFF] text-white rounded-xl hover:bg-[#4F5FEF] transition-colors font-medium"
+                >
+                  Edit
+                </button>
+              </div>
             </div>
           </div>
         </div>
