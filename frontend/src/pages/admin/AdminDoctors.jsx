@@ -1,7 +1,7 @@
 // src/pages/admin/Doctors.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import { getDoctors, deleteDoctorById } from "../../services/DoctorService";
+import { getDoctors, deleteDoctorById, updateDoctorById } from "../../services/DoctorService";
 import { uploadImage } from "../../api/ApiManager";
 import { 
   FaEdit, 
@@ -295,14 +295,12 @@ const AdminDoctors = () => {
       
       const payload = {
         ...formData,
+        doctor_id: editing.doctor_id,
         doctor_image: publicId,
         doctor_available_date: formData.doctor_available_date.join(","),
       };
       
-      await axios.put(
-        `http://localhost:4000/api/doctor/${editing.doctor_id}`,
-        payload
-      );
+      await updateDoctorById(editing.doctor_id, payload);
       
       setDoctors(
         doctors.map((d) =>
