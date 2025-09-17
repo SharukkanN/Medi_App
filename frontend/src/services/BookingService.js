@@ -39,3 +39,9 @@ export const addUserDocuments = async (bookingId, documents) => {
     requestBody: { BookingId: bookingId, Documents: documents },
   });
 };
+
+export const fetchAppointmentsByUser = async (userId) => {
+  return apiGet({
+    path: `/bookings/user/${userId}`,
+  });
+};
