@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
+import { getUserById } from "../services/UserService";
 
 const MyProfile = () => {
   const { id } = useParams();
@@ -14,9 +15,8 @@ const MyProfile = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/users/${id}`);
-        const data = await res.json();
-        setUserData(data);
+        const data = await getUserById(id);
+        setUserData(data.data);
       } catch (err) {
         console.error("Error fetching user:", err);
       } finally {
