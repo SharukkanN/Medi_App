@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
-
-// 🔑 Adjust to your backend API base URL
-const API_BASE = "http://localhost:4000/api";
+import { validateToken } from "../services/AuthService";
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -24,24 +22,14 @@ const Navbar = () => {
       const token = localStorage.getItem("token");
 
       if (user && token) {
-        try {
-          // validate token with backend (optional but secure)
-          const res = await fetch(`${API_BASE}/auth/validate`, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
-          });
-
-          if (res.ok) {
-            setLoggedInUser(JSON.parse(user));
-          } else {
-            // token invalid → force logout
-            localStorage.removeItem("user");
-            localStorage.removeItem("token");
-            setLoggedInUser(null);
-          }
-        } catch (err) {
-          console.error("Token validation failed:", err);
-          setLoggedInUser(JSON.parse(user)); // fallback: just use local
+        const isValid = await validateToken();
+        if (isValid) {
+          setLoggedInUser(JSON.parse(user));
+        } else {
+          // token invalid → force logout
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          setLoggedInUser(null);
         }
       } else {
         setLoggedInUser(null);
