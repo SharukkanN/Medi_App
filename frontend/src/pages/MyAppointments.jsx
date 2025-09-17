@@ -1,6 +1,8 @@
 // src/pages/MyAppointments.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { uploadImage } from "../api/ApiManager";
+import { addUserDocuments } from "../services/BookingService";
 
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -133,28 +135,44 @@ const MyAppointments = () => {
       return;
     }
 
-    const formData = new FormData();
-    files[booking_id].forEach((file) => formData.append("booking_user_doc", file));
-
     try {
-      await axios.put(
-        `http://localhost:4000/api/bookings/update/${booking_id}`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      alert("✅ Files uploaded successfully!");
-      setFiles((prev) => ({ ...prev, [booking_id]: [] }));
-      setFilePreviews((prev) => ({ ...prev, [booking_id]: {} }));
+      const publicIds = [];
+      const selectedFiles = files[booking_id];
 
-      // Refresh appointments
-      const loggedUser = JSON.parse(localStorage.getItem("user"));
-      const res = await axios.get(
-        `http://localhost:4000/api/bookings/user/${loggedUser.user_id}`
-      );
-      setAppointments(res.data);
+      // Upload each file to get publicId
+      for (const file of selectedFiles) {
+        const formData = new FormData();
+        formData.append("image", file);
+
+        const uploadResponse = await uploadImage(formData);
+        if (uploadResponse.data && uploadResponse.data.publicId) {
+          publicIds.push(uploadResponse.data.publicId);
+        } else {
+          throw new Error("Failed to get publicId from upload response");
+        }
+      }
+
+      // Add user documents using the collected publicIds
+      if (publicIds.length > 0) {
+        await addUserDocuments(booking_id, publicIds);
+        alert("✅ Files uploaded successfully!");
+        
+        // Clear files and previews
+        setFiles((prev) => ({ ...prev, [booking_id]: [] }));
+        setFilePreviews((prev) => ({ ...prev, [booking_id]: {} }));
+
+        // Refresh appointments
+        const loggedUser = JSON.parse(localStorage.getItem("user"));
+        const res = await axios.get(
+          `http://localhost:4000/api/bookings/user/${loggedUser.user_id}`
+        );
+        setAppointments(res.data);
+      } else {
+        throw new Error("No files were uploaded successfully");
+      }
     } catch (err) {
       console.error("Error uploading files:", err);
-      alert("❌ Failed to upload files.");
+      alert("❌ Failed to upload files. Please try again.");
     }
   };
 

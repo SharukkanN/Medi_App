@@ -68,6 +68,6 @@ router.get("/stats", getBookingsStats);
 router.post("/add-prescription", addPrescriptionController);
 
 // 👉 Add user documents to a booking
-router.post("/add-documents", uploadUserDocs.array('documents', 10), addUserDocumentsController);
+router.post("/add-documents", addUserDocumentsController);
 
 export default router;

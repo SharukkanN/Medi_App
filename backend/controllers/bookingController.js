@@ -251,38 +251,20 @@ export const addPrescriptionController = async (req, res) => {
 // ✅ Add user documents to a booking
 export const addUserDocumentsController = async (req, res) => {
   try {
-    const { bookingId } = req.body;
-    const files = req.files;
+    const { BookingId, Documents } = req.body;
 
-    if (!bookingId) {
-      return res.status(400).json({ message: "Booking ID is required" });
+    if (!BookingId || !Array.isArray(Documents)) {
+      return res.status(400).json({ message: "Invalid input. BookingId and Documents array are required." });
     }
 
-    if (!files || files.length === 0) {
-      return res.status(400).json({ message: "No documents uploaded" });
-    }
-
-    // Ensure the upload directory exists
-    const uploadDir = path.join(process.cwd(), "Upload", "Booking", "User");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    // Get filenames
-    const documentFilenames = files.map(file => file.filename);
-
-    // Update booking with document filenames
-    const updated = await Booking.updateUserDocs(bookingId, documentFilenames);
+    const updated = await Booking.updateUserDocs(BookingId, Documents);
     if (!updated) {
       return res.status(404).json({ message: "Booking not found" });
     }
 
-    res.status(200).json({ 
-      message: "Documents added successfully", 
-      documents: documentFilenames 
-    });
+    res.json({ message: "Documents added successfully" });
   } catch (err) {
     console.error("Error adding documents:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ message: "Server error" });
   }
 };

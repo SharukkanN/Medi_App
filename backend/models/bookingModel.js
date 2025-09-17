@@ -121,7 +121,7 @@ export const updatePrescription = async (booking_id, prescription) => {
 export const updateUserDocs = async (booking_id, documents) => {
   const [result] = await pool.query(
     "UPDATE bookings SET booking_user_doc = ? WHERE booking_id = ?",
-    [documents.join(","), booking_id]
+    [JSON.stringify(documents), booking_id]
   );
   return result.affectedRows;
 };
