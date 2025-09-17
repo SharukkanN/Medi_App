@@ -5,3 +5,9 @@ export const getDoctors = async () => {
     path: "/doctor",
   });       
 };
+
+export const getDoctorDetailsById = async (docId) => {
+  return apiGet({
+    path: `/doctor/${docId}`,
+  });       
+};

@@ -28,7 +28,7 @@ const DoctorAppointments = () => {
           prescription_url: appt.booking_prescription ? (() => {
             try {
               const parsed = JSON.parse(appt.booking_prescription);
-              return parsed && parsed.length > 0 ? `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${parsed[0]}` : null;
+              return parsed && parsed.length > 0 ? `${import.meta.env.VITE_CLOUDINARY_URL}/${parsed[0]}` : null;
             } catch {
               return null;
             }
@@ -38,7 +38,7 @@ const DoctorAppointments = () => {
             try {
               const parsed = JSON.parse(appt.booking_user_doc);
               return Array.isArray(parsed) ? parsed.map(docId => 
-                `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${docId}`
+                `${import.meta.env.VITE_CLOUDINARY_URL}/${docId}`
               ) : [];
             } catch {
               return [];
@@ -123,7 +123,7 @@ const DoctorAppointments = () => {
     try {
       const uploadRes = await uploadImage(formData);
       const publicId = uploadRes.data.publicId;
-      const prescriptionUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${publicId}`;
+      const prescriptionUrl = `${import.meta.env.VITE_CLOUDINARY_URL}/${publicId}`;
 
       const addRes = await addPrescription(bookingId, [publicId]);
       if (addRes.data.success) {
