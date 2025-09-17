@@ -176,23 +176,15 @@ const MyAppointments = () => {
     }
   };
 
-  // Handle download of files (correct folder based on type)
-  const handleDownload = (filename, type) => {
+  // Handle view of files using Cloudinary
+  const handleDownload = (filename) => {
     if (!filename) {
       alert("❌ No file available!");
       return;
     }
 
-    let folder = "";
-    if (type === "prescription") folder = "Doctor";
-    else if (type === "user_doc") folder = "User";
-
-    const link = document.createElement("a");
-    link.href = `http://localhost:4000/Upload/Booking/${folder}/${filename}`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const url = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
+    window.open(url, '_blank');
   };
 
   // Format file size
@@ -275,6 +267,85 @@ const MyAppointments = () => {
     );
   };
 
+  // Document Preview Component for existing prescriptions and user docs
+  const DocumentPreview = ({ documents, title, icon }) => {
+    if (!documents || documents.length === 0) return null;
+
+    const getDocumentType = (filename) => {
+      const extension = filename.split('.').pop().toLowerCase();
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
+      if (extension === 'pdf') return 'pdf';
+      if (['doc', 'docx'].includes(extension)) return 'document';
+      return 'other';
+    };
+
+    const getDocumentIcon = (docType) => {
+      switch (docType) {
+        case 'pdf': return '📄';
+        case 'document': return '📝';
+        case 'image': return '🖼️';
+        default: return '📎';
+      }
+    };
+
+    return (
+      <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <h5 className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+          {icon} {title} ({documents.length})
+        </h5>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {documents.map((filename, index) => {
+            const docType = getDocumentType(filename);
+            const cloudinaryUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
+            
+            return (
+              <div 
+                key={index} 
+                className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+                onClick={() => handleDownload(filename)}
+              >
+                {/* Document Preview Content */}
+                <div className="flex flex-col items-center">
+                  {docType === 'image' ? (
+                    <div className="w-full h-24 mb-2 overflow-hidden rounded-md">
+                      <img 
+                        src={cloudinaryUrl} 
+                        alt={`Document ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className="w-full h-24 mb-2 hidden items-center justify-center bg-gray-100 rounded-md">
+                        <span className="text-3xl">{getDocumentIcon(docType)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-24 mb-2 flex items-center justify-center bg-gray-100 rounded-md">
+                      <span className="text-3xl">{getDocumentIcon(docType)}</span>
+                    </div>
+                  )}
+
+                  {/* Document Info */}
+                  <div className="w-full text-center">
+                    <p className="text-xs font-medium text-gray-800 truncate mb-1" title={filename}>
+                      {filename.length > 15 ? `${filename.substring(0, 15)}...` : filename}
+                    </p>
+                    <p className="text-xs text-blue-600 hover:text-blue-800">
+                      Click to view
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // Status badge component
   const StatusBadge = ({ status, link }) => {
     const statusConfig = {
@@ -330,8 +401,8 @@ const MyAppointments = () => {
 
   // File management component
   const FileManager = ({ appointment }) => {
-    const userDocs = appointment.booking_user_doc ? appointment.booking_user_doc.split(",") : [];
-    const prescriptions = appointment.booking_prescription ? appointment.booking_prescription.split(",") : [];
+    const userDocs = appointment.booking_user_doc ? JSON.parse(appointment.booking_user_doc) : [];
+    const prescriptions = appointment.booking_prescription ? JSON.parse(appointment.booking_prescription) : [];
 
     return (
       <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
@@ -360,48 +431,17 @@ const MyAppointments = () => {
         {/* File Preview Section */}
         <FilePreview booking_id={appointment.booking_id} />
 
-        {/* Download Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          {/* Prescriptions */}
-          {prescriptions.length > 0 && (
-            <div>
-              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                💊 Prescriptions ({prescriptions.length})
-              </h5>
-              <div className="space-y-2">
-                {prescriptions.map((filename, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleDownload(filename, "prescription")}
-                    className="w-full text-left flex items-center gap-2 bg-green-50 text-green-700 px-3 py-2 rounded-lg hover:bg-green-100 transition-colors duration-200 text-sm border border-green-200"
-                  >
-                    📋 Prescription {idx + 1}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* User Documents */}
-          {userDocs.length > 0 && (
-            <div>
-              <h5 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-1">
-                📄 Your Documents ({userDocs.length})
-              </h5>
-              <div className="space-y-2">
-                {userDocs.map((filename, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleDownload(filename, "user_doc")}
-                    className="w-full text-left flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors duration-200 text-sm border border-blue-200"
-                  >
-                    📄 Document {idx + 1}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Document Previews */}
+        <DocumentPreview 
+          documents={prescriptions} 
+          title="Prescriptions" 
+          icon="💊" 
+        />
+        <DocumentPreview 
+          documents={userDocs} 
+          title="Your Documents" 
+          icon="📄" 
+        />
       </div>
     );
   };
