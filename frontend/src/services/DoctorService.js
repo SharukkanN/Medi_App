@@ -31,3 +31,9 @@ export const createDoctor = async (doctorData) => {
     requestBody: doctorData
   });
 };
+
+export const getDoctorsCount = async () => {
+  return apiGet({
+    path: `/doctor/count/all`
+  });
+};

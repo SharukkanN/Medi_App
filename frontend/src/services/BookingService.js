@@ -45,3 +45,9 @@ export const fetchAppointmentsByUser = async (userId) => {
     path: `/bookings/user/${userId}`,
   });
 };
+
+export const getBookingsCount = async () => {
+  return apiGet({
+    path: `/bookings/count/all`
+  }); 
+};

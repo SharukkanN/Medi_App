@@ -12,3 +12,9 @@ export const updateUser = async (userId, userData) => {
     requestBody: userData
   });
 };
+
+export const getUsersCount = async () => {
+  return apiGet({
+    path: `/users/count/all`
+  });
+};

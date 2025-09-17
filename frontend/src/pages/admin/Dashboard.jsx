@@ -9,7 +9,9 @@ import {
   Legend,
 } from "chart.js";
 import { FaUserMd, FaUsers, FaCalendarAlt } from "react-icons/fa";
-import axios from "axios";
+import { getDoctorsCount } from '../../services/DoctorService';
+import { getUsersCount } from '../../services/UserService';
+import { getBookingsCount } from '../../services/BookingService';
 
 ChartJS.register(ArcElement, Title, Tooltip, Legend);
 
@@ -22,9 +24,9 @@ const Dashboard = () => {
       try {
         setLoading(true);
         const [docRes, userRes, appRes] = await Promise.all([
-          axios.get("http://localhost:4000/api/doctor/count/all"),
-          axios.get("http://localhost:4000/api/users/count/all"),
-          axios.get("http://localhost:4000/api/bookings/count/all"),
+          getDoctorsCount(),
+          getUsersCount(),
+          getBookingsCount(),
         ]);
 
         setCounts({
