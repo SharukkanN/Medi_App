@@ -1,7 +1,6 @@
 // src/pages/admin/Doctors.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import axios from "axios";
-import { getDoctors, deleteDoctorById, updateDoctorById } from "../../services/DoctorService";
+import { getDoctors, deleteDoctorById, updateDoctorById, createDoctor } from "../../services/DoctorService";
 import { uploadImage } from "../../api/ApiManager";
 import { 
   FaEdit, 
@@ -348,7 +347,7 @@ const AdminDoctors = () => {
         doctor_available_date: formData.doctor_available_date.join(","),
       };
       
-      const res = await axios.post("http://localhost:4000/api/doctor", payload);
+      const res = await createDoctor(payload);
       setDoctors([{ ...res.data, doctor_available_date: formData.doctor_available_date, doctor_image: formData.doctor_image }, ...doctors]);
       setAdding(false);
       resetForm();
