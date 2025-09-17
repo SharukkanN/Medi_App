@@ -7,8 +7,10 @@ import { addUserDocuments } from "../services/BookingService";
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [files, setFiles] = useState({});
-  const [filePreviews, setFilePreviews] = useState({});
+  const [newFiles, setNewFiles] = useState({}); // Only new files selected by user
+  const [newFilePreviews, setNewFilePreviews] = useState({});
+  const [existingFiles, setExistingFiles] = useState({}); // Existing files from server
+  const [filesToRemove, setFilesToRemove] = useState({}); // Track existing files to be removed
 
   // Fetch appointments for logged-in user
   useEffect(() => {
@@ -19,25 +21,30 @@ const MyAppointments = () => {
           alert("⚠️ Please login to view appointments.");
           return;
         }
-
         const res = await axios.get(
           `http://localhost:4000/api/bookings/user/${loggedUser.user_id}`
         );
         setAppointments(res.data);
+        
+        // Initialize existing files for each appointment
+        const existingFilesData = {};
+        res.data.forEach(appointment => {
+          const userDocs = appointment.booking_user_doc ? JSON.parse(appointment.booking_user_doc) : [];
+          existingFilesData[appointment.booking_id] = userDocs;
+        });
+        setExistingFiles(existingFilesData);
       } catch (err) {
         console.error("Error fetching appointments:", err);
       } finally {
         setLoading(false);
       }
     };
-
     fetchAppointments();
   }, []);
 
-  // Generate file previews
-  const generatePreviews = (booking_id, allFiles) => {
-    // Clear existing previews for this booking
-    setFilePreviews(prev => ({
+  // Generate file previews for new files only
+  const generateNewFilePreviews = (booking_id, allFiles) => {
+    setNewFilePreviews(prev => ({
       ...prev,
       [booking_id]: {}
     }));
@@ -53,7 +60,7 @@ const MyAppointments = () => {
       if (isImage) {
         const reader = new FileReader();
         reader.onload = (e) => {
-          setFilePreviews(prev => ({
+          setNewFilePreviews(prev => ({
             ...prev,
             [booking_id]: {
               ...prev[booking_id],
@@ -62,15 +69,15 @@ const MyAppointments = () => {
                 url: e.target.result,
                 name: file.name,
                 size: file.size,
-                file: file
+                file: file,
+                isNew: true
               }
             }
           }));
         };
         reader.readAsDataURL(file);
       } else {
-        // For non-image files, create a placeholder preview
-        setFilePreviews(prev => ({
+        setNewFilePreviews(prev => ({
           ...prev,
           [booking_id]: {
             ...prev[booking_id],
@@ -79,7 +86,8 @@ const MyAppointments = () => {
               url: null,
               name: file.name,
               size: file.size,
-              file: file
+              file: file,
+              isNew: true
             }
           }
         }));
@@ -87,29 +95,28 @@ const MyAppointments = () => {
     });
   };
 
-  // Handle file selection for multiple files
-  const handleFileChange = (booking_id, e) => {
-    const newFiles = Array.from(e.target.files);
-    const currentFiles = files[booking_id] || [];
-    const allFiles = [...currentFiles, ...newFiles];
+  // Handle new file selection
+  const handleNewFileChange = (booking_id, e) => {
+    const selectedFiles = Array.from(e.target.files);
+    const currentNewFiles = newFiles[booking_id] || [];
+    const allNewFiles = [...currentNewFiles, ...selectedFiles];
     
-    setFiles((prev) => ({
+    setNewFiles((prev) => ({
       ...prev,
-      [booking_id]: allFiles,
+      [booking_id]: allNewFiles,
     }));
 
-    // Generate previews for all files
-    generatePreviews(booking_id, allFiles);
+    generateNewFilePreviews(booking_id, allNewFiles);
   };
 
-  // Remove individual file from selection
-  const removeFile = (booking_id, fileIndex) => {
-    setFiles(prev => ({
+  // Remove new file from selection
+  const removeNewFile = (booking_id, fileIndex) => {
+    setNewFiles(prev => ({
       ...prev,
-      [booking_id]: prev[booking_id].filter((_, index) => index !== fileIndex)
+      [booking_id]: prev[booking_id]?.filter((_, index) => index !== fileIndex) || []
     }));
 
-    setFilePreviews(prev => {
+    setNewFilePreviews(prev => {
       const updated = { ...prev };
       if (updated[booking_id]) {
         delete updated[booking_id][fileIndex];
@@ -128,22 +135,46 @@ const MyAppointments = () => {
     });
   };
 
-  // Handle file upload for multiple files (user docs only)
+  // Mark existing file for removal
+  const markExistingFileForRemoval = (booking_id, filename) => {
+    setFilesToRemove(prev => ({
+      ...prev,
+      [booking_id]: [...(prev[booking_id] || []), filename]
+    }));
+  };
+
+  // Restore existing file (unmark for removal)
+  const restoreExistingFile = (booking_id, filename) => {
+    setFilesToRemove(prev => ({
+      ...prev,
+      [booking_id]: prev[booking_id]?.filter(f => f !== filename) || []
+    }));
+  };
+
+  // Check if existing file is marked for removal
+  const isMarkedForRemoval = (booking_id, filename) => {
+    return filesToRemove[booking_id]?.includes(filename) || false;
+  };
+
+  // Handle file upload
   const handleUpload = async (booking_id) => {
-    if (!files[booking_id] || files[booking_id].length === 0) {
-      alert("Please select at least one file to upload!");
+    const selectedNewFiles = newFiles[booking_id] || [];
+    const existingFilesToKeep = (existingFiles[booking_id] || []).filter(
+      filename => !isMarkedForRemoval(booking_id, filename)
+    );
+
+    if (selectedNewFiles.length === 0 && existingFilesToKeep.length === (existingFiles[booking_id] || []).length) {
+      alert("No changes to save!");
       return;
     }
 
     try {
       const publicIds = [];
-      const selectedFiles = files[booking_id];
 
-      // Upload each file to get publicId
-      for (const file of selectedFiles) {
+      // Upload new files and get publicIds
+      for (const file of selectedNewFiles) {
         const formData = new FormData();
         formData.append("image", file);
-
         const uploadResponse = await uploadImage(formData);
         if (uploadResponse.data && uploadResponse.data.publicId) {
           publicIds.push(uploadResponse.data.publicId);
@@ -152,14 +183,24 @@ const MyAppointments = () => {
         }
       }
 
-      // Add user documents using the collected publicIds
-      if (publicIds.length > 0) {
-        await addUserDocuments(booking_id, publicIds);
-        alert("✅ Files uploaded successfully!");
+      // Combine existing files (not marked for removal) with new uploaded files
+      const allDocuments = [...existingFilesToKeep, ...publicIds];
+
+      // Update user documents with combined list
+      if (allDocuments.length >= 0) {
+        await addUserDocuments(booking_id, allDocuments);
+        alert("✅ Documents updated successfully!");
         
-        // Clear files and previews
-        setFiles((prev) => ({ ...prev, [booking_id]: [] }));
-        setFilePreviews((prev) => ({ ...prev, [booking_id]: {} }));
+        // Clear new files and previews
+        setNewFiles((prev) => ({ ...prev, [booking_id]: [] }));
+        setNewFilePreviews((prev) => ({ ...prev, [booking_id]: {} }));
+        setFilesToRemove((prev) => ({ ...prev, [booking_id]: [] }));
+
+        // Update existing files state
+        setExistingFiles(prev => ({
+          ...prev,
+          [booking_id]: allDocuments
+        }));
 
         // Refresh appointments
         const loggedUser = JSON.parse(localStorage.getItem("user"));
@@ -168,21 +209,20 @@ const MyAppointments = () => {
         );
         setAppointments(res.data);
       } else {
-        throw new Error("No files were uploaded successfully");
+        throw new Error("No documents to save");
       }
     } catch (err) {
-      console.error("Error uploading files:", err);
-      alert("❌ Failed to upload files. Please try again.");
+      console.error("Error updating documents:", err);
+      alert("❌ Failed to update documents. Please try again.");
     }
   };
 
-  // Handle view of files using Cloudinary
+  // Handle view/download of files
   const handleDownload = (filename) => {
     if (!filename) {
       alert("❌ No file available!");
       return;
     }
-
     const url = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
     window.open(url, '_blank');
   };
@@ -206,32 +246,142 @@ const MyAppointments = () => {
     }
   };
 
-  // File Preview Component
-  const FilePreview = ({ booking_id }) => {
-    const previews = filePreviews[booking_id] || {};
-    const selectedFiles = files[booking_id] || [];
+  // Get document type from filename
+  const getDocumentType = (filename) => {
+    const extension = filename.split('.').pop().toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
+    if (extension === 'pdf') return 'pdf';
+    if (['doc', 'docx'].includes(extension)) return 'document';
+    return 'other';
+  };
 
-    if (selectedFiles.length === 0) return null;
+  // Existing Files Preview Component
+  const ExistingFilesPreview = ({ booking_id }) => {
+    const currentExistingFiles = existingFiles[booking_id] || [];
+    
+    if (currentExistingFiles.length === 0) return null;
+
+    return (
+      <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+        <h5 className="font-medium text-green-800 mb-3 flex items-center gap-2">
+          💾 Existing Documents ({currentExistingFiles.length})
+        </h5>
+        
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {currentExistingFiles.map((filename, index) => {
+            const docType = getDocumentType(filename);
+            const cloudinaryUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
+            const markedForRemoval = isMarkedForRemoval(booking_id, filename);
+            
+            return (
+              <div 
+                key={`existing-${index}`} 
+                className={`relative bg-white rounded-lg border-2 p-3 transition-all duration-200 ${
+                  markedForRemoval 
+                    ? 'border-red-300 bg-red-50 opacity-60' 
+                    : 'border-green-300 hover:shadow-md'
+                }`}
+              >
+                {/* Remove/Restore Button */}
+                <button
+                  onClick={() => markedForRemoval 
+                    ? restoreExistingFile(booking_id, filename)
+                    : markExistingFileForRemoval(booking_id, filename)
+                  }
+                  className={`absolute -top-2 -right-2 rounded-full w-6 h-6 flex items-center justify-center text-xs transition-colors duration-200 z-10 ${
+                    markedForRemoval
+                      ? 'bg-green-500 text-white hover:bg-green-600'
+                      : 'bg-red-500 text-white hover:bg-red-600'
+                  }`}
+                >
+                  {markedForRemoval ? '↶' : '✕'}
+                </button>
+
+                {/* File Preview Content */}
+                <div 
+                  className="flex flex-col items-center cursor-pointer"
+                  onClick={() => !markedForRemoval && handleDownload(filename)}
+                >
+                  {docType === 'image' ? (
+                    <div className="w-full h-24 mb-2 overflow-hidden rounded-md">
+                      <img 
+                        src={cloudinaryUrl} 
+                        alt={`Document ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className="w-full h-24 mb-2 hidden items-center justify-center bg-gray-100 rounded-md">
+                        <span className="text-3xl">{getFileIcon(docType)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-24 mb-2 flex items-center justify-center bg-gray-100 rounded-md">
+                      <span className="text-3xl">{getFileIcon(docType)}</span>
+                    </div>
+                  )}
+                  
+                  {/* Document Info */}
+                  <div className="w-full text-center">
+                    <p className="text-xs font-medium text-gray-800 truncate mb-1" title={filename}>
+                      {filename.length > 15 ? `${filename.substring(0, 15)}...` : filename}
+                    </p>
+                    <p className={`text-xs ${markedForRemoval ? 'text-red-600' : 'text-green-600'}`}>
+                      {markedForRemoval ? 'Will be removed' : 'Click to view'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Removal overlay */}
+                {markedForRemoval && (
+                  <div className="absolute inset-0 bg-red-500 bg-opacity-20 rounded-lg flex items-center justify-center">
+                    <span className="text-red-600 font-bold text-sm">REMOVING</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // New Files Preview Component
+  const NewFilesPreview = ({ booking_id }) => {
+    const previews = newFilePreviews[booking_id] || {};
+    const selectedNewFiles = newFiles[booking_id] || [];
+    
+    if (selectedNewFiles.length === 0) return null;
 
     return (
       <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
         <h5 className="font-medium text-blue-800 mb-3 flex items-center gap-2">
-          👁️ File Preview ({selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''})
+          ➕ New Files to Upload ({selectedNewFiles.length})
         </h5>
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {selectedFiles.map((file, index) => {
+          {selectedNewFiles.map((file, index) => {
             const preview = previews[index];
             
             return (
-              <div key={index} className="relative bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow duration-200">
+              <div 
+                key={`new-${index}`} 
+                className="relative bg-white rounded-lg border-2 border-blue-300 p-3 hover:shadow-md transition-shadow duration-200"
+              >
                 {/* Remove Button */}
                 <button
-                  onClick={() => removeFile(booking_id, index)}
+                  onClick={() => removeNewFile(booking_id, index)}
                   className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600 transition-colors duration-200 z-10"
                 >
                   ✕
                 </button>
+                
+                {/* New file indicator */}
+                <div className="absolute -top-2 -left-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+                  +
+                </div>
 
                 {/* File Preview Content */}
                 <div className="flex flex-col items-center">
@@ -248,7 +398,7 @@ const MyAppointments = () => {
                       <span className="text-3xl">{getFileIcon(preview?.type || 'other')}</span>
                     </div>
                   )}
-
+                  
                   {/* File Info */}
                   <div className="w-full text-center">
                     <p className="text-xs font-medium text-gray-800 truncate mb-1" title={file.name}>
@@ -267,26 +417,9 @@ const MyAppointments = () => {
     );
   };
 
-  // Document Preview Component for existing prescriptions and user docs
+  // Document Preview Component for prescriptions
   const DocumentPreview = ({ documents, title, icon }) => {
     if (!documents || documents.length === 0) return null;
-
-    const getDocumentType = (filename) => {
-      const extension = filename.split('.').pop().toLowerCase();
-      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) return 'image';
-      if (extension === 'pdf') return 'pdf';
-      if (['doc', 'docx'].includes(extension)) return 'document';
-      return 'other';
-    };
-
-    const getDocumentIcon = (docType) => {
-      switch (docType) {
-        case 'pdf': return '📄';
-        case 'document': return '📝';
-        case 'image': return '🖼️';
-        default: return '📎';
-      }
-    };
 
     return (
       <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -305,7 +438,6 @@ const MyAppointments = () => {
                 className="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
                 onClick={() => handleDownload(filename)}
               >
-                {/* Document Preview Content */}
                 <div className="flex flex-col items-center">
                   {docType === 'image' ? (
                     <div className="w-full h-24 mb-2 overflow-hidden rounded-md">
@@ -319,16 +451,14 @@ const MyAppointments = () => {
                         }}
                       />
                       <div className="w-full h-24 mb-2 hidden items-center justify-center bg-gray-100 rounded-md">
-                        <span className="text-3xl">{getDocumentIcon(docType)}</span>
+                        <span className="text-3xl">{getFileIcon(docType)}</span>
                       </div>
                     </div>
                   ) : (
                     <div className="w-full h-24 mb-2 flex items-center justify-center bg-gray-100 rounded-md">
-                      <span className="text-3xl">{getDocumentIcon(docType)}</span>
+                      <span className="text-3xl">{getFileIcon(docType)}</span>
                     </div>
                   )}
-
-                  {/* Document Info */}
                   <div className="w-full text-center">
                     <p className="text-xs font-medium text-gray-800 truncate mb-1" title={filename}>
                       {filename.length > 15 ? `${filename.substring(0, 15)}...` : filename}
@@ -401,8 +531,10 @@ const MyAppointments = () => {
 
   // File management component
   const FileManager = ({ appointment }) => {
-    const userDocs = appointment.booking_user_doc ? JSON.parse(appointment.booking_user_doc) : [];
     const prescriptions = appointment.booking_prescription ? JSON.parse(appointment.booking_prescription) : [];
+    const hasNewFiles = (newFiles[appointment.booking_id] || []).length > 0;
+    const hasFilesToRemove = (filesToRemove[appointment.booking_id] || []).length > 0;
+    const hasChanges = hasNewFiles || hasFilesToRemove;
 
     return (
       <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
@@ -411,36 +543,44 @@ const MyAppointments = () => {
         </h4>
         
         {/* Upload Section */}
-        <div className="flex flex-wrap gap-3 items-center mb-4">
-          <input
-            type="file"
-            multiple
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-            onChange={(e) => handleFileChange(appointment.booking_id, e)}
-            className="block text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer border border-gray-300 rounded-lg"
-          />
-          <button
-            onClick={() => handleUpload(appointment.booking_id)}
-            disabled={!files[appointment.booking_id] || files[appointment.booking_id].length === 0}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 text-sm font-medium"
-          >
-            📤 Upload Documents
-          </button>
+        <div className="mb-4">
+          <div className="flex flex-wrap gap-3 items-center mb-2">
+            <input
+              type="file"
+              multiple
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+              onChange={(e) => handleNewFileChange(appointment.booking_id, e)}
+              className="block text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 file:cursor-pointer border border-gray-300 rounded-lg"
+            />
+            <button
+              onClick={() => handleUpload(appointment.booking_id)}
+              disabled={!hasChanges}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
+                hasChanges
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-400 text-white cursor-not-allowed'
+              }`}
+            >
+              💾 Save Changes
+            </button>
+          </div>
+          
+          {hasChanges && (
+            <div className="text-sm text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+              💡 You have unsaved changes. Click "Save Changes" to update your documents.
+            </div>
+          )}
         </div>
 
-        {/* File Preview Section */}
-        <FilePreview booking_id={appointment.booking_id} />
+        {/* File Previews */}
+        <ExistingFilesPreview booking_id={appointment.booking_id} />
+        <NewFilesPreview booking_id={appointment.booking_id} />
 
-        {/* Document Previews */}
+        {/* Prescription Documents (Read-only) */}
         <DocumentPreview 
           documents={prescriptions} 
           title="Prescriptions" 
           icon="💊" 
-        />
-        <DocumentPreview 
-          documents={userDocs} 
-          title="Your Documents" 
-          icon="📄" 
         />
       </div>
     );
