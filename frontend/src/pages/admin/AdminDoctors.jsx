@@ -1,7 +1,7 @@
 // src/pages/admin/Doctors.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
-import { getDoctors } from "../../services/DoctorService";
+import { getDoctors, deleteDoctorById } from "../../services/DoctorService";
 import { uploadImage } from "../../api/ApiManager";
 import { 
   FaEdit, 
@@ -246,7 +246,7 @@ const AdminDoctors = () => {
     if (!window.confirm(`Are you sure you want to delete Dr. ${doctor.doctor_firstname} ${doctor.doctor_lastname}?`)) return;
     
     try {
-      await axios.delete(`http://localhost:4000/api/doctor/${doctor.doctor_id}`);
+      await deleteDoctorById(doctor.doctor_id);
       setDoctors(doctors.filter((d) => d.doctor_id !== doctor.doctor_id));
       // Add success notification here
     } catch (err) {
