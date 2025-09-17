@@ -1,7 +1,7 @@
 // src/pages/doctor/DoctorAppointments.jsx
 import React, { useEffect, useState } from "react";
 import { uploadImage } from "../../api/ApiManager";
-import { addPrescription } from "../../services/BookingService";
+import { addPrescription, fetchAppointments } from "../../services/BookingService";
 
 const DoctorAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -11,13 +11,13 @@ const DoctorAppointments = () => {
   const rowsPerPage = 10;
 
   useEffect(() => {
-    const fetchAppointments = async () => {
+    const loadAppointments = async () => {
       try {
         const doctor = JSON.parse(localStorage.getItem("doctor"));
         if (!doctor) return;
         
-        const res = await fetch(`http://localhost:4000/api/bookings/all`);
-        const data = await res.json();
+        const res = await fetchAppointments();
+        const data = res.data;
         
         const doctorAppointments = data.filter(
           (appt) =>
@@ -51,7 +51,7 @@ const DoctorAppointments = () => {
         console.error("Error fetching appointments:", err);
       }
     };
-    fetchAppointments();
+    loadAppointments();
   }, []);
 
   // Calculate summary
