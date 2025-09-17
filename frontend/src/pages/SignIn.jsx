@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { doctorLogin, userLogin } from "../services/AuthService";
 
 const SignIn = () => {
   const [username, setUsername] = useState("");
@@ -22,17 +23,8 @@ const SignIn = () => {
       }
 
       // --- Doctor Login ---
-      const doctorResponse = await fetch("http://localhost:4000/api/doctor/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          doctor_username: username,
-          doctor_password: password,
-        }),
-      });
-
-      if (doctorResponse.ok) {
-        const doctorData = await doctorResponse.json();
+      try {
+        const doctorData = await doctorLogin(username, password);
 
         localStorage.setItem("doctor", JSON.stringify(doctorData.doctor));
         localStorage.setItem("token", doctorData.token);
@@ -42,32 +34,23 @@ const SignIn = () => {
 
         navigate(`/doctor-panel/${doctorData.doctor.doctor_id}/profile`);
         return;
+      } catch {
+        // If doctor login fails, continue to user login
       }
 
       // --- Normal User Login ---
-      const userResponse = await fetch("http://localhost:4000/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_username: username,
-          user_password: password,
-        }),
-      });
+      try {
+        const userData = await userLogin(username, password);
 
-      const userData = await userResponse.json();
+        localStorage.setItem("user", JSON.stringify(userData.user));
+        localStorage.setItem("token", userData.token);
 
-      if (!userResponse.ok) {
-        setError(userData.message || "Invalid credentials");
-        setLoading(false);
-        return;
+        window.dispatchEvent(new Event("storage"));
+
+        navigate(`/my-profile/${userData.user.user_id}`);
+      } catch (err) {
+        setError(err.message || "Invalid credentials");
       }
-
-      localStorage.setItem("user", JSON.stringify(userData.user));
-      localStorage.setItem("token", userData.token);
-
-      window.dispatchEvent(new Event("storage"));
-
-      navigate(`/my-profile/${userData.user.user_id}`);
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");

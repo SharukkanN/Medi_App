@@ -1,7 +1,7 @@
 // src/pages/admin/Users.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { FaTrash } from "react-icons/fa";
+import { getUsers, deleteUser } from "../../services/UserService";
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -12,8 +12,8 @@ const Users = () => {
   // Fetch users from backend
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:4000/api/users"); // change URL if needed
-      setUsers(res.data);
+      const data = await getUsers();
+      setUsers(data.data);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching users:", err);
@@ -43,7 +43,7 @@ const Users = () => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      await axios.delete(`http://localhost:4000/api/users/${id}`);
+      await deleteUser(id);
       setUsers(users.filter((user) => user.user_id !== id));
     } catch (err) {
       console.error("Error deleting user:", err);

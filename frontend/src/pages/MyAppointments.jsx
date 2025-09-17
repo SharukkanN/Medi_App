@@ -1,8 +1,7 @@
 // src/pages/MyAppointments.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import { uploadImage } from "../api/ApiManager";
-import { addUserDocuments } from "../services/BookingService";
+import { addUserDocuments, fetchAppointmentsByUser } from "../services/BookingService";
 
 const MyAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -21,9 +20,7 @@ const MyAppointments = () => {
           alert("⚠️ Please login to view appointments.");
           return;
         }
-        const res = await axios.get(
-          `http://localhost:4000/api/bookings/user/${loggedUser.user_id}`
-        );
+        const res = await fetchAppointmentsByUser(loggedUser.user_id);
         setAppointments(res.data);
         
         // Initialize existing files for each appointment
@@ -204,9 +201,7 @@ const MyAppointments = () => {
 
         // Refresh appointments
         const loggedUser = JSON.parse(localStorage.getItem("user"));
-        const res = await axios.get(
-          `http://localhost:4000/api/bookings/user/${loggedUser.user_id}`
-        );
+        const res = await fetchAppointmentsByUser(loggedUser.user_id);
         setAppointments(res.data);
       } else {
         throw new Error("No documents to save");
@@ -223,7 +218,7 @@ const MyAppointments = () => {
       alert("❌ No file available!");
       return;
     }
-    const url = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
+    const url = `${import.meta.env.VITE_CLOUDINARY_URL}/${filename}`;
     window.open(url, '_blank');
   };
 
@@ -270,7 +265,7 @@ const MyAppointments = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {currentExistingFiles.map((filename, index) => {
             const docType = getDocumentType(filename);
-            const cloudinaryUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
+            const cloudinaryUrl = `${import.meta.env.VITE_CLOUDINARY_URL}/${filename}`;
             const markedForRemoval = isMarkedForRemoval(booking_id, filename);
             
             return (
@@ -430,7 +425,7 @@ const MyAppointments = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {documents.map((filename, index) => {
             const docType = getDocumentType(filename);
-            const cloudinaryUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1757946102/${filename}`;
+            const cloudinaryUrl = `${import.meta.env.VITE_CLOUDINARY_URL}/${filename}`;
             
             return (
               <div 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { 
   FaUserMd, 
@@ -17,6 +17,7 @@ import {
   FaVenus,
   FaChild
 } from "react-icons/fa";
+import { getDoctors } from "../services/DoctorService";
 
 const Doctors = () => {
   const { speciality } = useParams();
@@ -30,7 +31,7 @@ const Doctors = () => {
   const navigate = useNavigate();
 
   // Enhanced specialist categories with icons
-  const specialistCategories = [
+  const specialistCategories = useMemo(() => [
     { name: "GP", icon: FaUserMd, color: "bg-blue-500", count: 0 },
     { name: "Urologist", icon: FaStethoscope, color: "bg-green-500", count: 0 },
     { name: "Gynecologist", icon: FaVenus, color: "bg-pink-500", count: 0 },
@@ -38,14 +39,14 @@ const Doctors = () => {
     { name: "Fertility", icon: FaChild, color: "bg-purple-500", count: 0 },
     { name: "Psychologist", icon: FaBrain, color: "bg-indigo-500", count: 0 },
     { name: "Ayurvedic", icon: FaLeaf, color: "bg-emerald-500", count: 0 },
-  ];
+  ], []);
 
   // Fetch all doctors from backend
-  const fetchDoctors = async () => {
+  const fetchDoctors = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:4000/api/doctor");
-      const data = await res.json();
+      const response = await getDoctors();
+      const data = response.data; // Extract the actual data array
       setDoctors(data);
       
       // Calculate counts for each specialty
@@ -65,11 +66,11 @@ const Doctors = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFilter, specialistCategories]);
 
   useEffect(() => {
     fetchDoctors();
-  }, []);
+  }, [fetchDoctors]);
 
   // Apply filter with search
   const applyFilter = (filter) => {

@@ -1,7 +1,7 @@
 // src/pages/doctor/DoctorAppointments.jsx
 import React, { useEffect, useState } from "react";
 import { uploadImage } from "../../api/ApiManager";
-import { addPrescription } from "../../services/BookingService";
+import { addPrescription, fetchAppointments } from "../../services/BookingService";
 
 const DoctorAppointments = () => {
   const [appointments, setAppointments] = useState([]);
@@ -11,13 +11,13 @@ const DoctorAppointments = () => {
   const rowsPerPage = 10;
 
   useEffect(() => {
-    const fetchAppointments = async () => {
+    const loadAppointments = async () => {
       try {
         const doctor = JSON.parse(localStorage.getItem("doctor"));
         if (!doctor) return;
         
-        const res = await fetch(`http://localhost:4000/api/bookings/all`);
-        const data = await res.json();
+        const res = await fetchAppointments();
+        const data = res.data;
         
         const doctorAppointments = data.filter(
           (appt) =>
@@ -28,7 +28,7 @@ const DoctorAppointments = () => {
           prescription_url: appt.booking_prescription ? (() => {
             try {
               const parsed = JSON.parse(appt.booking_prescription);
-              return parsed && parsed.length > 0 ? `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${parsed[0]}` : null;
+              return parsed && parsed.length > 0 ? `${import.meta.env.VITE_CLOUDINARY_URL}/${parsed[0]}` : null;
             } catch {
               return null;
             }
@@ -38,7 +38,7 @@ const DoctorAppointments = () => {
             try {
               const parsed = JSON.parse(appt.booking_user_doc);
               return Array.isArray(parsed) ? parsed.map(docId => 
-                `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${docId}`
+                `${import.meta.env.VITE_CLOUDINARY_URL}/${docId}`
               ) : [];
             } catch {
               return [];
@@ -51,7 +51,7 @@ const DoctorAppointments = () => {
         console.error("Error fetching appointments:", err);
       }
     };
-    fetchAppointments();
+    loadAppointments();
   }, []);
 
   // Calculate summary
@@ -75,15 +75,25 @@ const DoctorAppointments = () => {
   };
 
   // Download single document
-  const downloadDocument = (docUrl, index) => {
+  const downloadDocument = async (docUrl, index) => {
     try {
+      // Fetch the file as a blob
+      const response = await fetch(docUrl);
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create download link
       const link = document.createElement("a");
-      link.href = docUrl;
+      link.href = blobUrl;
       link.download = `patient_document_${index + 1}`;
-      link.target = "_blank";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download error:", error);
       alert("Failed to download document. Please try again.");
@@ -113,7 +123,7 @@ const DoctorAppointments = () => {
     try {
       const uploadRes = await uploadImage(formData);
       const publicId = uploadRes.data.publicId;
-      const prescriptionUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${publicId}`;
+      const prescriptionUrl = `${import.meta.env.VITE_CLOUDINARY_URL}/${publicId}`;
 
       const addRes = await addPrescription(bookingId, [publicId]);
       if (addRes.data.success) {

@@ -1,6 +1,6 @@
 // src/pages/admin/Doctors.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import axios from "axios";
+import { getDoctors, deleteDoctorById, updateDoctorById, createDoctor } from "../../services/DoctorService";
 import { uploadImage } from "../../api/ApiManager";
 import { 
   FaEdit, 
@@ -76,8 +76,9 @@ const AdminDoctors = () => {
   const fetchDoctors = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://localhost:4000/api/doctor");
-      const mappedDoctors = res.data.map((doc) => ({
+      const response = await getDoctors();
+      const data = response.data || response;
+      const mappedDoctors = data.map((doc) => ({
         ...doc,
         doctor_available_date: doc.doctor_available_date?.split(",") || [],
       }));
@@ -244,7 +245,7 @@ const AdminDoctors = () => {
     if (!window.confirm(`Are you sure you want to delete Dr. ${doctor.doctor_firstname} ${doctor.doctor_lastname}?`)) return;
     
     try {
-      await axios.delete(`http://localhost:4000/api/doctor/${doctor.doctor_id}`);
+      await deleteDoctorById(doctor.doctor_id);
       setDoctors(doctors.filter((d) => d.doctor_id !== doctor.doctor_id));
       // Add success notification here
     } catch (err) {
@@ -293,14 +294,12 @@ const AdminDoctors = () => {
       
       const payload = {
         ...formData,
+        doctor_id: editing.doctor_id,
         doctor_image: publicId,
         doctor_available_date: formData.doctor_available_date.join(","),
       };
       
-      await axios.put(
-        `http://localhost:4000/api/doctor/${editing.doctor_id}`,
-        payload
-      );
+      await updateDoctorById(editing.doctor_id, payload);
       
       setDoctors(
         doctors.map((d) =>
@@ -348,7 +347,7 @@ const AdminDoctors = () => {
         doctor_available_date: formData.doctor_available_date.join(","),
       };
       
-      const res = await axios.post("http://localhost:4000/api/doctor", payload);
+      const res = await createDoctor(payload);
       setDoctors([{ ...res.data, doctor_available_date: formData.doctor_available_date, doctor_image: formData.doctor_image }, ...doctors]);
       setAdding(false);
       resetForm();

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { assets } from "../assets/assets";
+import { getUserById, updateUser } from "../services/UserService";
+import { fetchAppointmentsByUser } from "../services/BookingService";
 
 const MyProfile = () => {
   const { id } = useParams();
@@ -14,9 +16,8 @@ const MyProfile = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch(`http://localhost:4000/api/users/${id}`);
-        const data = await res.json();
-        setUserData(data);
+        const data = await getUserById(id);
+        setUserData(data.data);
       } catch (err) {
         console.error("Error fetching user:", err);
       } finally {
@@ -26,13 +27,10 @@ const MyProfile = () => {
 
     const fetchAppointments = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:4000/api/bookings/user/${id}`
-        );
-        const data = await res.json();
-
+        const data = await fetchAppointmentsByUser(id);
+        const appointments = data.data || data;
         const now = new Date();
-        const upcoming = data
+        const upcoming = appointments
           .filter((appt) => {
             if (appt.booking_status !== "Link") return false;
             const apptDateTime = new Date(
@@ -59,16 +57,15 @@ const MyProfile = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`http://localhost:4000/api/users/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userData),
-      });
-      const data = await res.json();
-      console.log("Updated user:", data);
+      const updatedData = { ...userData, user_id: id };
+      await updateUser(id, updatedData);
       setIsEdit(false);
     } catch (err) {
       console.error("Error saving user:", err);
+      if (err.response) {
+        console.error("Response status:", err.response.status);
+        console.error("Response data:", err.response.data);
+      }
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,6 @@
 // src/pages/doctor/DoctorProfile.jsx
 import React, { useEffect, useState } from "react";
+import { fetchAppointments } from "../../services/BookingService";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -20,10 +21,10 @@ const DoctorProfile = () => {
       });
     }
 
-    const fetchAppointments = async () => {
+    const loadAppointments = async () => {
       try {
-        const res = await fetch("http://localhost:4000/api/bookings/all");
-        const data = await res.json();
+        const res = await fetchAppointments();
+        const data = res.data;
         const doctorAppointments = data.filter(
           (appt) =>
             appt.doctor_firstname === JSON.parse(storedDoctor).doctor_firstname &&
@@ -41,7 +42,7 @@ const DoctorProfile = () => {
       }
     };
 
-    if (storedDoctor) fetchAppointments();
+    if (storedDoctor) loadAppointments();
   }, []);
 
   if (!doctor) return <p className="p-6">Loading profile...</p>;

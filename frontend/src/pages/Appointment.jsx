@@ -10,6 +10,7 @@ import {
   CheckCircle,
   Info,
 } from "lucide-react";
+import { getDoctorDetailsById } from "../services/DoctorService";
 
 const Appointment = () => {
   const { docId } = useParams();
@@ -32,10 +33,8 @@ const Appointment = () => {
   const fetchDocInfo = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await fetch(`http://localhost:4000/api/doctor/${docId}`);
-      if (!res.ok) throw new Error("Doctor not found");
-      const data = await res.json();
-      setDocInfo(data);
+      const data = await getDoctorDetailsById(docId);
+      setDocInfo(data.data);
       setError(null);
     } catch (error) {
       console.error("Error fetching doctor:", error);
@@ -147,7 +146,7 @@ const Appointment = () => {
             <div className="flex flex-col lg:flex-row gap-8 p-8">
               {/* Image */}
               <img
-                src={`http://localhost:4000/uploads/${docInfo.doctor_image}`}
+                src={`${import.meta.env.VITE_CLOUDINARY_URL}/${docInfo.doctor_image}`}
                 alt={docInfo.doctor_firstname}
                 className="w-48 h-48 lg:w-64 lg:h-64 object-cover rounded-2xl border"
               />

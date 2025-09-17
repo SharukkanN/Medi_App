@@ -285,7 +285,7 @@ export const sendPrescriptionNotificationEmail = async (bookingData, prescriptio
     let prescriptionLinks = '';
     if (Array.isArray(prescriptionArray)) {
       prescriptionArray.forEach((prescription, index) => {
-        const downloadUrl = `https://res.cloudinary.com/dlpcwx94i/image/upload/v1758033628/${prescription}`;
+        const downloadUrl = `${process.env.CLOUDINARY_BASE_URL}/${prescription}`;
         prescriptionLinks += `<p><a href="${downloadUrl}" class="download-btn" target="_blank">Download Prescription ${index + 1}</a></p>`;
       });
     }
