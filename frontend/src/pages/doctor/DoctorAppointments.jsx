@@ -75,15 +75,25 @@ const DoctorAppointments = () => {
   };
 
   // Download single document
-  const downloadDocument = (docUrl, index) => {
+  const downloadDocument = async (docUrl, index) => {
     try {
+      // Fetch the file as a blob
+      const response = await fetch(docUrl);
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create download link
       const link = document.createElement("a");
-      link.href = docUrl;
+      link.href = blobUrl;
       link.download = `patient_document_${index + 1}`;
-      link.target = "_blank";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      URL.revokeObjectURL(blobUrl);
     } catch (error) {
       console.error("Download error:", error);
       alert("Failed to download document. Please try again.");
